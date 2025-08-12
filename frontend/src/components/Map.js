@@ -53,7 +53,8 @@ const Map = ({
 
   // Format distance
   const formatDistance = (distance) => {
-    return distance ? `${(distance / 1000).toFixed(2)} km` : 'N/A';
+    if (distance === undefined || distance === null || isNaN(distance)) return 'N/A';
+    return `${Number(distance).toFixed(2)} km`;
   };
 
   // Format duration
@@ -111,13 +112,20 @@ const Map = ({
               location.isDepot ? '#FF5733' : '#3357FF', 
               location.isDepot ? 'depot' : 'location'
             )}
+            eventHandlers={{
+              click: () => {
+                if (onLocationSelect) {
+                  onLocationSelect(location);
+                }
+              }
+            }}
           >
             <Popup>
               <div className="location-popup">
                 <h3>{location.name}</h3>
                 <p>{location.address}</p>
                 <p className="coordinates">
-                  <strong>Coordinates:</strong> {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                  <strong>Coordinates:</strong> {Number(location.latitude).toFixed(6)}, {Number(location.longitude).toFixed(6)}
                 </p>
                 {location.isDepot && <p className="depot-label">Depot</p>}
                 {location.demand > 0 && (

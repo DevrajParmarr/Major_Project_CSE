@@ -1,18 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LocationService from '../services/location.service';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import LocationSearch from '../components/LocationSearch';
+import Map from '../components/Map';
 import '../styles/Forms.css';
 
 const LocationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!id;
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markerRef = useRef(null);
+  // Map interactions are handled inside Map component; no ref needed
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,49 +27,10 @@ const LocationForm = () => {
     if (isEditMode) {
       fetchLocation();
     }
-
-    // Initialize map
-    if (!mapInstanceRef.current && mapRef.current) {
-      mapInstanceRef.current = L.map(mapRef.current).setView([20, 0], 2);
-      
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(mapInstanceRef.current);
-
-      // Add click event to map
-      mapInstanceRef.current.on('click', handleMapClick);
-    }
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.off('click', handleMapClick);
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
   }, [id]);
 
   useEffect(() => {
-    // Update marker when coordinates change
-    if (mapInstanceRef.current && formData.latitude && formData.longitude) {
-      const lat = parseFloat(formData.latitude);
-      const lng = parseFloat(formData.longitude);
-      
-      if (!isNaN(lat) && !isNaN(lng)) {
-        // Remove existing marker
-        if (markerRef.current) {
-          markerRef.current.remove();
-        }
-        
-        // Add new marker
-        markerRef.current = L.marker([lat, lng])
-          .addTo(mapInstanceRef.current)
-          .bindPopup(formData.name || 'New Location');
-        
-        // Center map on marker
-        mapInstanceRef.current.setView([lat, lng], 13);
-      }
-    }
+    // no-op: Map component manages rendering.
   }, [formData.latitude, formData.longitude, formData.name]);
 
   const fetchLocation = async () => {
@@ -97,17 +54,14 @@ const LocationForm = () => {
     }
   };
 
-  const handleMapClick = (e) => {
-    const { lat, lng } = e.latlng;
-    
-    // Update form data with clicked coordinates
+  const handleMapClick = ({ latitude, longitude }) => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
     setFormData(prev => ({
       ...prev,
       latitude: lat.toFixed(6),
       longitude: lng.toFixed(6)
     }));
-
-    // If no name is set, try to get address from coordinates
     if (!formData.name) {
       reverseGeocode(lat, lng);
     }
@@ -208,16 +162,21 @@ const LocationForm = () => {
         <span className="option-text">Click on the map below</span>
       </div>
 
-      {showSearch && (
-        <div className="search-section">
-          <LocationSearch 
-            onLocationSelect={handleLocationSelect}
-            map={mapInstanceRef.current}
-          />
-        </div>
-      )}
-
-      <div className="map-container" ref={mapRef}></div>
+      <div className="map-container">
+        <Map 
+          onLocationSelect={showSearch ? handleLocationSelect : undefined}
+          onMapClick={handleMapClick}
+          center={formData.latitude && formData.longitude ? [Number(formData.latitude), Number(formData.longitude)] : [20, 0]}
+          zoom={formData.latitude && formData.longitude ? 13 : 2}
+          locations={formData.latitude && formData.longitude ? [{
+            _id: 'current',
+            name: formData.name || 'Selected Location',
+            address: formData.address,
+            latitude: Number(formData.latitude),
+            longitude: Number(formData.longitude),
+          }] : []}
+        />
+      </div>
       <p className="map-help">
         <i className="fas fa-info-circle"></i>
         Click on the map to set location coordinates. The location name and address will be automatically filled if available.

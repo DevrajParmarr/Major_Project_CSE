@@ -53,7 +53,9 @@ const Map = ({
 
   // Format distance
   const formatDistance = (distance) => {
-    return distance ? `${(distance / 1000).toFixed(2)} km` : 'N/A';
+    const n = Number(distance ?? 0);
+    if (!isFinite(n) || n <= 0) return 'N/A';
+    return `${n.toFixed(2)} km`;
   };
 
   // Format duration
@@ -117,7 +119,7 @@ const Map = ({
                 <h3>{location.name}</h3>
                 <p>{location.address}</p>
                 <p className="coordinates">
-                  <strong>Coordinates:</strong> {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                  <strong>Coordinates:</strong> {Number(location?.latitude ?? 0).toFixed(6)}, {Number(location?.longitude ?? 0).toFixed(6)}
                 </p>
                 {location.isDepot && <p className="depot-label">Depot</p>}
                 {location.demand > 0 && (

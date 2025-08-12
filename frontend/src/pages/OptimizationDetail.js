@@ -98,7 +98,7 @@ return (
         </div>
         <div className="summary-content">
           <h3>Total Distance</h3>
-          <p className="summary-value">{optimization.totalDistance.toFixed(2)} km</p>
+          <p className="summary-value">{Number(optimization?.totalDistance ?? 0).toFixed(2)} km</p>
         </div>
       </div>
     </div>
@@ -141,7 +141,7 @@ return (
               <div key={index} className="route-card">
                 <h3>Route {index + 1} - {route.vehicleName}</h3>
                 <p>
-                  <strong>Total Distance:</strong> {route.totalDistance.toFixed(2)} km
+                  <strong>Total Distance:</strong> {Number((route.distance ?? route.totalDistance) ?? 0).toFixed(2)} km
                 </p>
                 <p>
                   <strong>Total Capacity:</strong> {route.totalCapacity}
@@ -182,7 +182,7 @@ return (
                   </tr>
                   <tr>
                     <td>Total Distance</td>
-                    <td>{optimization.totalDistance.toFixed(2)} km</td>
+                    <td>{Number(optimization?.totalDistance ?? 0).toFixed(2)} km</td>
                   </tr>
                   <tr>
                     <td>Total Stops</td>

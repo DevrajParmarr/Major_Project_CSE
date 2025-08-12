@@ -83,8 +83,9 @@ const Dashboard = () => {
 
   // Format distance
   const formatDistance = (distance) => {
-    if (!distance) return '0 km';
-    return `${(distance / 1000).toFixed(2)} km`;
+    const n = Number(distance ?? 0);
+    if (!isFinite(n) || n <= 0) return '0 km';
+    return `${n.toFixed(2)} km`;
   };
 
   // Get optimization locations

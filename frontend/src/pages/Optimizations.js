@@ -72,7 +72,7 @@ const Optimizations = () => {
                   <i className="fas fa-route"></i> Routes: {optimization.routes ? optimization.routes.length : 0}
                 </p>
                 <p>
-                  <i className="fas fa-road"></i> Total Distance: {optimization.totalDistance ? optimization.totalDistance.toFixed(2) : '0.00'} km
+                  <i className="fas fa-road"></i> Total Distance: {Number(optimization?.totalDistance ?? 0).toFixed(2)} km
                 </p>
               </div>
               <div className="optimization-actions">

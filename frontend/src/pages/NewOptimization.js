@@ -221,8 +221,8 @@ const NewOptimization = () => {
                             />
                           </td>
                           <td>{location.name}</td>
-                          <td>{location.latitude.toFixed(6)}</td>
-                          <td>{location.longitude.toFixed(6)}</td>
+                          <td>{Number(location?.latitude ?? 0).toFixed(6)}</td>
+                          <td>{Number(location?.longitude ?? 0).toFixed(6)}</td>
                           <td>{location.demand || 0}</td>
                           <td>{location.isDepot ? 'Yes' : 'No'}</td>
                         </tr>

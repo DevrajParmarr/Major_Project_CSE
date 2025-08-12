@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaTruck, FaSignOutAlt, FaUser, FaBars, FaTimes } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import '../styles/Navbar.css';
 
 const Navbar = () => {
   const { currentUser, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -82,11 +84,14 @@ const Navbar = () => {
           </div>
 
           <div className="navbar-user">
+            <button className="btn btn-outline btn-sm" onClick={toggleTheme} aria-label="Toggle theme">
+              {theme === 'light' ? 'Dark' : 'Light'}
+            </button>
             {currentUser && (
               <>
                 <div className="user-info">
                   <FaUser className="user-icon" />
-                  <span className="user-name">{currentUser.name}</span>
+                  <span className="user-name">Hi, {currentUser.name?.split(' ')[0] || 'User'}</span>
                 </div>
                 <button className="logout-button" onClick={handleLogout}>
                   <FaSignOutAlt />

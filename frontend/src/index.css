@@ -11,3 +11,48 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Dark Theme Overrides */
+:root[data-theme='dark'] {
+  --color-bg: #0f141a;
+  --color-surface: #151b23;
+  --color-text: #e6edf3;
+  --color-muted: #9aa4b2;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.4);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,0.6);
+}
+
+:root[data-theme='dark'] body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+:root[data-theme='dark'] .card,
+:root[data-theme='dark'] .navbar,
+:root[data-theme='dark'] .optimization-card,
+:root[data-theme='dark'] .optimization-tabs,
+:root[data-theme='dark'] .summary-card,
+:root[data-theme='dark'] .map-wrapper,
+:root[data-theme='dark'] .dashboard-section,
+:root[data-theme='dark'] .dashboard-recent,
+:root[data-theme='dark'] .locations-container .locations-list {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-theme='dark'] table thead th {
+  background-color: #1f2630;
+}
+
+:root[data-theme='dark'] .navbar-link {
+  color: var(--color-muted);
+}
+
+:root[data-theme='dark'] .no-data p,
+:root[data-theme='dark'] .recent-info-item,
+:root[data-theme='dark'] .route-detail span,
+:root[data-theme='dark'] .optimization-date {
+  color: var(--color-muted);
+}

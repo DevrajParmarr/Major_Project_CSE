@@ -111,10 +111,12 @@ return (
             name: stop.locationName,
             latitude: stop.latitude,
             longitude: stop.longitude,
-            demand: stop.demand
+            demand: stop.demand,
+            isDepot: stop.order === 0 || stop.order === (route.stops.length - 1)
           }))
         )}
         routes={optimization.routes}
+        vehicles={optimization.vehicles || []}
       />
     </div>
 

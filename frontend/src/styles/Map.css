@@ -65,7 +65,7 @@
 
 /* Popup styles */
 .leaflet-popup-content-wrapper {
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 0;
   overflow: hidden;
 }
@@ -73,6 +73,11 @@
 .leaflet-popup-content {
   margin: 0;
   padding: 0;
+}
+
+.leaflet-popup-content h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.05rem;
 }
 
 .location-popup,
@@ -259,4 +264,9 @@
   margin: 5px 0;
   font-size: 14px;
   color: #666;
+}
+
+.map-toolbar .btn {
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(6px);
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import Home from './pages/Home';
@@ -19,72 +20,74 @@ import './App.css';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="app">
-          <Navbar />
-          <div className="container">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              
-              <Route path="/dashboard" element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              } />
-              
-              <Route path="/vehicles" element={
-                <PrivateRoute>
-                  <Vehicles />
-                </PrivateRoute>
-              } />
-              <Route path="/vehicles/add" element={
-                <PrivateRoute>
-                  <VehicleForm />
-                </PrivateRoute>
-              } />
-              <Route path="/vehicles/edit/:id" element={
-                <PrivateRoute>
-                  <VehicleForm />
-                </PrivateRoute>
-              } />
-              
-              <Route path="/locations" element={
-                <PrivateRoute>
-                  <Locations />
-                </PrivateRoute>
-              } />
-              <Route path="/locations/add" element={
-                <PrivateRoute>
-                  <LocationForm />
-                </PrivateRoute>
-              } />
-              <Route path="/locations/edit/:id" element={
-                <PrivateRoute>
-                  <LocationForm />
-                </PrivateRoute>
-              } />
-              
-              <Route path="/optimizations" element={
-                <PrivateRoute>
-                  <Optimizations />
-                </PrivateRoute>
-              } />
-              <Route path="/optimizations/new" element={
-                <PrivateRoute>
-                  <NewOptimization />
-                </PrivateRoute>
-              } />
-              <Route path="/optimizations/:id" element={
-                <PrivateRoute>
-                  <OptimizationDetail />
-                </PrivateRoute>
-              } />
-            </Routes>
+      <ThemeProvider>
+        <Router>
+          <div className="app">
+            <Navbar />
+            <div className="container">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                
+                <Route path="/dashboard" element={
+                  <PrivateRoute>
+                    <Dashboard />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/vehicles" element={
+                  <PrivateRoute>
+                    <Vehicles />
+                  </PrivateRoute>
+                } />
+                <Route path="/vehicles/add" element={
+                  <PrivateRoute>
+                    <VehicleForm />
+                  </PrivateRoute>
+                } />
+                <Route path="/vehicles/edit/:id" element={
+                  <PrivateRoute>
+                    <VehicleForm />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/locations" element={
+                  <PrivateRoute>
+                    <Locations />
+                  </PrivateRoute>
+                } />
+                <Route path="/locations/add" element={
+                  <PrivateRoute>
+                    <LocationForm />
+                  </PrivateRoute>
+                } />
+                <Route path="/locations/edit/:id" element={
+                  <PrivateRoute>
+                    <LocationForm />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/optimizations" element={
+                  <PrivateRoute>
+                    <Optimizations />
+                  </PrivateRoute>
+                } />
+                <Route path="/optimizations/new" element={
+                  <PrivateRoute>
+                    <NewOptimization />
+                  </PrivateRoute>
+                } />
+                <Route path="/optimizations/:id" element={
+                  <PrivateRoute>
+                    <OptimizationDetail />
+                  </PrivateRoute>
+                } />
+              </Routes>
+            </div>
           </div>
-        </div>
-      </Router>
+        </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

@@ -209,3 +209,38 @@
      padding: 1.5rem;
    }
  }
+
+.summary-card {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.map-wrapper {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.optimization-tabs {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-button.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.route-card {
+  background-color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.stops-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stops-list li .stop-chip {
+  margin-left: 0.5rem;
+}

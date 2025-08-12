@@ -151,8 +151,13 @@ return (
                   <ol className="stops-list">
                     {route.stops.map((stop, stopIndex) => (
                       <li key={stopIndex}>
-                        {stop.locationName}
-                        {stop.demand > 0 && ` (Demand: ${stop.demand})`}
+                        <span>{stop.locationName}</span>
+                        <span>
+                          {stop.demand > 0 && <span className="chip stop-chip">Demand: {stop.demand}</span>}
+                          {stopIndex === 0 || stopIndex === route.stops.length - 1 ? (
+                            <span className="badge stop-chip">Depot</span>
+                          ) : null}
+                        </span>
                       </li>
                     ))}
                   </ol>

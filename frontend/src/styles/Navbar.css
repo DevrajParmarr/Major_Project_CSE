@@ -71,11 +71,11 @@
 }
 
 .navbar-link:hover {
-  color: #0062E6;
+  color: var(--color-primary);
 }
 
 .navbar-link.active {
-  color: #0062E6;
+  color: var(--color-primary);
 }
 
 .navbar-link.active::after {
@@ -86,7 +86,7 @@
   transform: translateX(-50%);
   width: 20px;
   height: 3px;
-  background-color: #0062E6;
+  background-color: var(--color-primary);
   border-radius: 3px;
 }
 
@@ -102,7 +102,7 @@
 }
 
 .user-icon {
-  color: #0062E6;
+  color: var(--color-primary);
   margin-right: 0.5rem;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .logout-button:hover {
-  color: #dc3545;
+  color: var(--color-danger);
 }
 
 .logout-text {

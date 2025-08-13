@@ -189,15 +189,7 @@ const Map = ({
                 weight={5}
                 opacity={0.8}
               />
-              {/* Arrow heads */}
-              {/* eslint-disable-next-line no-undef */}
-              {coordinates.length > 1 && L && L.polylineDecorator && (
-                L.polylineDecorator(coordinates, {
-                  patterns: [
-                    { offset: 25, repeat: 50, symbol: L.Symbol.arrowHead({ pixelSize: 10, polygon: false, pathOptions: { color, weight: 3 } }) }
-                  ]
-                })
-              )}
+
             </React.Fragment>
           );
         })}

@@ -195,6 +195,10 @@ return (
             {optimization.routes && optimization.routes.map((route, index) => (
               <div key={index} className="route-card">
                 <h3>Route {index + 1} - {route.vehicleName}</h3>
+                <div className="chips">
+                  <span className="chip"><i className="fa fa-road"></i>{Number((route.distance ?? route.totalDistance) ?? 0).toFixed(2)} km</span>
+                  <span className="chip"><i className="fa fa-clock"></i>{route.duration ? `${Math.floor(route.duration / 60)} min` : 'N/A'}</span>
+                </div>
                 <p>
                   <strong>Total Distance:</strong> {Number((route.distance ?? route.totalDistance) ?? 0).toFixed(2)} km
                 </p>

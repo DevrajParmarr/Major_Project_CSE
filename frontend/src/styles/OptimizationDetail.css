@@ -120,7 +120,7 @@
  
  .routes-tab {
    display: grid;
-   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
    gap: 1.5rem;
  }
  
@@ -243,4 +243,12 @@
 
 .stops-list li .stop-chip {
   margin-left: 0.5rem;
+}
+
+.route-card .chips {
+  margin-top: 0.5rem;
+}
+
+.route-card .chip + .chip {
+  margin-left: 6px;
 }

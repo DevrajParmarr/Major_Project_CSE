@@ -79,19 +79,16 @@ const Optimizations = () => {
       ) : (
         <div className="optimizations-grid">
           {optimizations && optimizations.length > 0 && optimizations.map(optimization => (
-            <div key={optimization._id} className="optimization-card">
-              <h3>{optimization.name}</h3>
+            <div key={optimization._id} className="optimization-card card card-hover">
+              <div className="optimization-header">
+                <div className="optimization-name">{optimization.name}</div>
+                <div className="optimization-meta">
+                  <span className="tag"><i className="fa fa-calendar"></i>{new Date(optimization.date).toLocaleDateString()}</span>
+                  <span className="tag tag--primary"><i className="fa fa-route"></i>{optimization.routes ? optimization.routes.length : 0} routes</span>
+                </div>
+              </div>
               <div className="optimization-details">
-                <p>
-                  <i className="fas fa-calendar"></i>{' '}
-                  {new Date(optimization.date).toLocaleDateString()}
-                </p>
-                <p>
-                  <i className="fas fa-route"></i> Routes: {optimization.routes ? optimization.routes.length : 0}
-                </p>
-                <p>
-                  <i className="fas fa-road"></i> Total Distance: {Number(optimization?.totalDistance ?? 0).toFixed(2)} km
-                </p>
+                <p><i className="fas fa-road"></i> Total Distance: {Number(optimization?.totalDistance ?? 0).toFixed(2)} km</p>
               </div>
               <div className="optimization-actions">
                 <Link to={`/optimizations/${optimization._id}`} className="btn btn-secondary">

@@ -23,4 +23,7 @@ router.post('/', auth, optimizationController.createOptimization);
 // @access  Private
 router.delete('/:id', auth, optimizationController.deleteOptimization);
 
+// New: get road-routed polyline for a route index
+router.get('/:id/route/:routeIndex/polyline', auth, optimizationController.getRoutedPolyline);
+
 module.exports = router;

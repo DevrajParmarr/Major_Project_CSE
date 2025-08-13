@@ -644,3 +644,46 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   
   return distance;
 }
+
+// Get routed polyline and metrics from OSRM for a stop sequence
+async function getOsrmRouteForStops(stops) {
+  // OSRM public demo server (rate-limited); for production, host your own
+  const base = 'https://router.project-osrm.org/route/v1/driving/';
+  const coords = stops.map(s => `${s.longitude},${s.latitude}`).join(';');
+  const url = `${base}${coords}?overview=full&geometries=geojson`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('OSRM request failed');
+    const data = await res.json();
+    if (!data.routes || data.routes.length === 0) throw new Error('No OSRM route');
+    const r = data.routes[0];
+    return {
+      geometry: r.geometry, // GeoJSON LineString
+      distanceKm: (r.distance || 0) / 1000,
+      durationMin: Math.round((r.duration || 0) / 60)
+    };
+  } catch (e) {
+    console.error('OSRM error:', e.message);
+    return null;
+  }
+}
+
+// API helper to route a given route's stops
+exports.getRoutedPolyline = async (req, res) => {
+  try {
+    const { id, routeIndex } = req.params;
+    const optimization = await Optimization.findById(id);
+    if (!optimization) return res.status(404).json({ msg: 'Optimization not found' });
+    if (optimization.user.toString() !== req.user.id) return res.status(401).json({ msg: 'User not authorized' });
+    const route = optimization.routes[Number(routeIndex)];
+    if (!route) return res.status(404).json({ msg: 'Route not found' });
+
+    const osrm = await getOsrmRouteForStops(route.stops);
+    if (!osrm) return res.status(502).json({ msg: 'Failed to get routed polyline' });
+
+    res.json(osrm);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+};

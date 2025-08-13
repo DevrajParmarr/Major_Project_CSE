@@ -25,11 +25,17 @@ const remove = async (id) => {
   return response.data;
 };
 
+const getRoutedPolyline = async (id, routeIndex) => {
+  const response = await api.get(`/optimization/${id}/route/${routeIndex}/polyline`);
+  return response.data;
+};
+
 const OptimizationService = {
   getAll,
   get,
   create,
-  remove
+  remove,
+  getRoutedPolyline,
 };
 
 export default OptimizationService;

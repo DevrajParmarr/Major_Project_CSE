@@ -14,10 +14,30 @@ const OptimizationDetail = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('routes');
   const { notify } = useToast();
+  const [useRoadNetwork, setUseRoadNetwork] = useState(false);
+  const [routedPolylines, setRoutedPolylines] = useState({});
 
   useEffect(() => {
     fetchOptimization();
   }, [id]);
+
+  useEffect(() => {
+    if (useRoadNetwork && optimization?.routes) {
+      // fetch polylines per route
+      (async () => {
+        const map = {};
+        for (let i = 0; i < optimization.routes.length; i++) {
+          try {
+            const data = await OptimizationService.getRoutedPolyline(id, i);
+            map[i] = data.geometry;
+          } catch (e) {
+            notify('Failed to fetch routed polyline', 'error');
+          }
+        }
+        setRoutedPolylines(map);
+      })();
+    }
+  }, [useRoadNetwork, optimization, id, notify]);
 
   const fetchOptimization = async () => {
     try {
@@ -116,6 +136,12 @@ return (
     </div>
 
     <div className="map-wrapper" data-aos="fade-up">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={useRoadNetwork} onChange={() => setUseRoadNetwork(v => !v)} />
+          <span>Use road network (beta)</span>
+        </label>
+      </div>
       <Map
         locations={optimization.routes.flatMap(route => 
           route.stops.map(stop => ({
@@ -129,6 +155,7 @@ return (
         )}
         routes={optimization.routes}
         vehicles={optimization.vehicles || []}
+        useRoadNetwork={useRoadNetwork}
       />
     </div>
 

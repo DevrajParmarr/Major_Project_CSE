@@ -17,7 +17,8 @@ const UserSchema = new mongoose.Schema({
   },
   preferences: {
     theme: { type: String, enum: ['light', 'dark'], default: 'light' },
-    defaultAlgorithm: { type: String, enum: ['clarke-wright', 'nearest-neighbor'], default: 'clarke-wright' }
+    defaultAlgorithm: { type: String, enum: ['clarke-wright', 'nearest-neighbor'], default: 'clarke-wright' },
+    preferRoadNetwork: { type: Boolean, default: false }
   },
   date: {
     type: Date,

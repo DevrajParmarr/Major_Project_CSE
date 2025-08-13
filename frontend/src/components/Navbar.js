@@ -82,6 +82,13 @@ const Navbar = () => {
             >
               Optimizations
             </Link>
+            <Link 
+              to="/settings" 
+              className={`navbar-link ${location.pathname.startsWith('/settings') ? 'active' : ''}`}
+              onClick={closeMenu}
+            >
+              Settings
+            </Link>
           </div>
 
           <div className="navbar-user">

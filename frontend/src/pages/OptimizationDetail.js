@@ -5,6 +5,7 @@ import Map from '../components/Map';
 import '../styles/OptimizationDetail.css';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useToast } from '../components/ToastProvider';
+import { useAuth } from '../context/AuthContext';
 
 const OptimizationDetail = () => {
   const { id } = useParams();
@@ -14,6 +15,7 @@ const OptimizationDetail = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('routes');
   const { notify } = useToast();
+  const { currentUser } = useAuth();
   const [useRoadNetwork, setUseRoadNetwork] = useState(false);
   const [routedPolylines, setRoutedPolylines] = useState({});
 
@@ -38,6 +40,12 @@ const OptimizationDetail = () => {
       })();
     }
   }, [useRoadNetwork, optimization, id, notify]);
+
+  useEffect(() => {
+    if (currentUser?.preferences?.preferRoadNetwork) {
+      setUseRoadNetwork(true);
+    }
+  }, [currentUser]);
 
   const fetchOptimization = async () => {
     try {
@@ -130,7 +138,11 @@ return (
         </div>
         <div className="summary-content">
           <h3>Total Distance</h3>
-          <p className="summary-value">{Number(optimization?.totalDistance ?? 0).toFixed(2)} km</p>
+          <p className="summary-value">
+            {useRoadNetwork && routedPolylines && Object.keys(routedPolylines).length > 0
+              ? `${optimization.routes.reduce((sum, _, idx) => sum + (((routedPolylines[idx]?.distanceKm) || 0)), 0).toFixed(2)} km`
+              : `${Number(optimization?.totalDistance ?? 0).toFixed(2)} km`}
+          </p>
         </div>
       </div>
     </div>

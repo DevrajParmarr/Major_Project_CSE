@@ -15,6 +15,7 @@ import LocationForm from './pages/LocationForm';
 import Optimizations from './pages/Optimizations';
 import NewOptimization from './pages/NewOptimization';
 import OptimizationDetail from './pages/OptimizationDetail';
+import Settings from './pages/Settings';
 import './App.css';
 import { ToastProvider } from './components/ToastProvider';
 
@@ -83,6 +84,11 @@ function App() {
                   <Route path="/optimizations/:id" element={
                     <PrivateRoute>
                       <OptimizationDetail />
+                    </PrivateRoute>
+                  } />
+                  <Route path="/settings" element={
+                    <PrivateRoute>
+                      <Settings />
                     </PrivateRoute>
                   } />
                 </Routes>

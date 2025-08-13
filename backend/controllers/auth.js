@@ -109,10 +109,11 @@ exports.getPreferences = async (req, res) => {
 // Update preferences
 exports.updatePreferences = async (req, res) => {
   try {
-    const { theme, defaultAlgorithm } = req.body;
+    const { theme, defaultAlgorithm, preferRoadNetwork } = req.body;
     const update = {};
-    if (theme) update['preferences.theme'] = theme;
-    if (defaultAlgorithm) update['preferences.defaultAlgorithm'] = defaultAlgorithm;
+    if (theme !== undefined) update['preferences.theme'] = theme;
+    if (defaultAlgorithm !== undefined) update['preferences.defaultAlgorithm'] = defaultAlgorithm;
+    if (preferRoadNetwork !== undefined) update['preferences.preferRoadNetwork'] = !!preferRoadNetwork;
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: update },

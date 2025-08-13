@@ -127,213 +127,247 @@ exports.deleteOptimization = async (req, res) => {
   }
 };
 
-// Clarke-Wright savings algorithm for capacitated vehicle routing
+// Enhanced Clarke-Wright algorithm with proper endpoint merges, capacity checks, and post-assignment
 function clarkeWrightAlgorithm(vehicles, locations, depot) {
-  // Calculate distances between all locations
+  const speedKmh = 40; // average speed for duration estimation
+
+  const toId = (objId) => objId.toString();
+
+  // Build distance matrix keyed by string ids
   const distances = {};
-  locations.forEach(loc1 => {
-    distances[loc1._id] = {};
-    locations.forEach(loc2 => {
-      distances[loc1._id][loc2._id] = calculateDistance(
-        loc1.latitude, loc1.longitude,
-        loc2.latitude, loc2.longitude
+  const allIds = locations.map((l) => toId(l._id));
+  locations.forEach((l1) => {
+    const id1 = toId(l1._id);
+    distances[id1] = {};
+    locations.forEach((l2) => {
+      const id2 = toId(l2._id);
+      distances[id1][id2] = calculateDistance(
+        l1.latitude,
+        l1.longitude,
+        l2.latitude,
+        l2.longitude
       );
     });
   });
-  
-  // Calculate savings for each location pair
+
+  const depotId = toId(depot._id);
+  const nonDepot = locations.filter((l) => toId(l._id) !== depotId);
+
+  // Initial routes: depot -> i -> depot
+  const makeDepotStop = (order) => ({
+    locationId: depot._id,
+    locationName: depot.name,
+    latitude: depot.latitude,
+    longitude: depot.longitude,
+    demand: depot.demand || 0,
+    order
+  });
+
+  const routes = nonDepot.map((loc) => {
+    const stops = [
+      makeDepotStop(0),
+      {
+        locationId: loc._id,
+        locationName: loc.name,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        demand: loc.demand || 0,
+        order: 1
+      },
+      makeDepotStop(2)
+    ];
+    const distance = distances[depotId][toId(loc._id)] * 2;
+    const duration = Math.round((distance / speedKmh) * 60);
+    return {
+      vehicle: undefined,
+      vehicleName: 'Unassigned',
+      stops,
+      distance,
+      duration,
+      totalCapacity: loc.demand || 0
+    };
+  });
+
+  // Savings list
   const savings = [];
-  locations.forEach(loc1 => {
-    if (loc1._id.toString() === depot._id.toString()) return;
-    
-    locations.forEach(loc2 => {
-      if (loc2._id.toString() === depot._id.toString() || 
-          loc1._id.toString() === loc2._id.toString()) return;
-      
-      const saving = distances[depot._id][loc1._id] + 
-                    distances[depot._id][loc2._id] - 
-                    distances[loc1._id][loc2._id];
-      
-      savings.push({
-        loc1: loc1,
-        loc2: loc2,
-        saving
-      });
-    });
-  });
-  
-  // Sort savings in descending order
+  for (let i = 0; i < nonDepot.length; i++) {
+    for (let j = i + 1; j < nonDepot.length; j++) {
+      const li = nonDepot[i];
+      const lj = nonDepot[j];
+      const idI = toId(li._id);
+      const idJ = toId(lj._id);
+      const saving =
+        distances[depotId][idI] + distances[depotId][idJ] - distances[idI][idJ];
+      savings.push({ i: li, j: lj, saving });
+    }
+  }
   savings.sort((a, b) => b.saving - a.saving);
-  
-  // Initialize routes (one per location excluding depot)
-  const routes = [];
-  const nonDepotLocations = locations.filter(loc => 
-    loc._id.toString() !== depot._id.toString()
-  );
-  
-  // Assign vehicles to routes
-  let vehicleIndex = 0;
-  const availableVehicles = [];
-  
-  vehicles.forEach(vehicle => {
-    for (let i = 0; i < vehicle.count; i++) {
-      availableVehicles.push({
-        ...vehicle.toObject(),
-        remainingCapacity: vehicle.capacity
-      });
+
+  const maxCapacity = vehicles.length > 0 ? Math.max(...vehicles.map((v) => v.capacity || 0)) : Infinity;
+
+  const findRouteIndexByLocation = (idStr) => {
+    for (let r = 0; r < routes.length; r++) {
+      const rt = routes[r];
+      const foundIdx = rt.stops.findIndex((s) => toId(s.locationId) === idStr);
+      if (foundIdx !== -1) {
+        return { routeIndex: r, stopIndex: foundIdx };
+      }
     }
-  });
-  
-  // Create initial routes (depot -> location -> depot)
-  nonDepotLocations.forEach(location => {
-    if (vehicleIndex >= availableVehicles.length) return;
-    
-    const vehicle = availableVehicles[vehicleIndex];
-    
-    // Skip if location demand exceeds vehicle capacity
-    if (location.demand > vehicle.remainingCapacity) return;
-    
-    const routeDistance = distances[depot._id][location._id] * 2;
-    const routeDuration = Math.floor(routeDistance * 2); // Rough estimate: 2 minutes per km
-    
-    const route = {
-      vehicle: vehicle._id,
-      vehicleName: vehicle.name,
-      stops: [
-        {
-          locationId: depot._id,
-          locationName: depot.name,
-          latitude: depot.latitude,
-          longitude: depot.longitude,
-          demand: depot.demand,
-          order: 0
-        },
-        {
-          locationId: location._id,
-          locationName: location.name,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          demand: location.demand,
-          order: 1
-        },
-        {
-          locationId: depot._id,
-          locationName: depot.name,
-          latitude: depot.latitude,
-          longitude: depot.longitude,
-          demand: depot.demand,
-          order: 2
-        }
-      ],
-      distance: routeDistance,
-      duration: routeDuration,
-      totalCapacity: location.demand
-    };
-    
-    routes.push(route);
-    vehicle.remainingCapacity -= location.demand;
-    vehicleIndex++;
-  });
-  
-  // Merge routes based on savings
-  savings.forEach(saving => {
-    const { loc1, loc2 } = saving;
-    
-    // Find routes containing loc1 and loc2
-    let route1 = null, route2 = null;
-    
-    for (let i = 0; i < routes.length; i++) {
-      const route = routes[i];
-      
-      // Check if route contains loc1
-      const containsLoc1 = route.stops.some(stop => 
-        stop.locationId.toString() === loc1._id.toString()
-      );
-      
-      // Check if route contains loc2
-      const containsLoc2 = route.stops.some(stop => 
-        stop.locationId.toString() === loc2._id.toString()
-      );
-      
-      if (containsLoc1 && !route1) route1 = { index: i, route };
-      if (containsLoc2 && !route2) route2 = { index: i, route };
-      
-      if (route1 && route2) break;
+    return null;
+  };
+
+  const isStartEndpoint = (rt, idx) => idx === 1; // first non-depot
+  const isEndEndpoint = (rt, idx) => idx === rt.stops.length - 2; // last non-depot
+
+  const recomputeRouteMetrics = (rt) => {
+    let dist = 0;
+    for (let k = 0; k < rt.stops.length - 1; k++) {
+      const from = rt.stops[k];
+      const to = rt.stops[k + 1];
+      const fromId = toId(from.locationId);
+      const toIdStr = toId(to.locationId);
+      dist += distances[fromId]?.[toIdStr] ?? calculateDistance(from.latitude, from.longitude, to.latitude, to.longitude);
     }
-    
-    // Skip if either location is not in a route
-    if (!route1 || !route2) return;
-    
-    // Skip if both locations are in the same route
-    if (route1.index === route2.index) return;
-    
-    // Check if routes can be merged (capacity constraint)
-    const totalDemand = route1.route.totalCapacity + route2.route.totalCapacity;
-    const vehicle = availableVehicles.find(v => 
-      v._id.toString() === route1.route.vehicle.toString()
-    );
-    
-    if (!vehicle || totalDemand > vehicle.capacity) return;
-    
-    // Merge routes
-    const newStops = [];
-    let order = 0;
-    
-    // Add depot as first stop
-    newStops.push({
-      ...route1.route.stops[0],
-      order: order++
-    });
-    
-    // Add stops from route1 (excluding depot)
-    route1.route.stops.slice(1, -1).forEach(stop => {
-      newStops.push({
-        ...stop,
-        order: order++
-      });
-    });
-    
-    // Add stops from route2 (excluding depot)
-    route2.route.stops.slice(1, -1).forEach(stop => {
-      newStops.push({
-        ...stop,
-        order: order++
-      });
-    });
-    
-    // Add depot as last stop
-    newStops.push({
-      ...route1.route.stops[0],
-      order: order
-    });
-    
-    // Calculate new total distance and duration
-    let totalDistance = 0;
-    for (let i = 0; i < newStops.length - 1; i++) {
-      const from = newStops[i];
-      const to = newStops[i + 1];
-      totalDistance += distances[from.locationId][to.locationId];
+    rt.distance = dist;
+    rt.duration = Math.round((dist / speedKmh) * 60);
+  };
+
+  // Merge using savings
+  for (const s of savings) {
+    const idI = toId(s.i._id);
+    const idJ = toId(s.j._id);
+
+    const posI = findRouteIndexByLocation(idI);
+    const posJ = findRouteIndexByLocation(idJ);
+    if (!posI || !posJ) continue;
+    if (posI.routeIndex === posJ.routeIndex) continue;
+
+    const r1 = routes[posI.routeIndex];
+    const r2 = routes[posJ.routeIndex];
+
+    const iAtEndOfR1 = isEndEndpoint(r1, posI.stopIndex);
+    const iAtStartOfR1 = isStartEndpoint(r1, posI.stopIndex);
+    const jAtEndOfR2 = isEndEndpoint(r2, posJ.stopIndex);
+    const jAtStartOfR2 = isStartEndpoint(r2, posJ.stopIndex);
+
+    let newStops = null;
+
+    // Case 1: i at end of r1, j at start of r2 -> r1 + r2
+    if (iAtEndOfR1 && jAtStartOfR2) {
+      newStops = [
+        ...r1.stops.slice(0, -1), // r1 without final depot
+        ...r2.stops.slice(1) // r2 without initial depot
+      ];
     }
-    const totalDuration = Math.floor(totalDistance * 2); // Rough estimate: 2 minutes per km
-    
-    // Create merged route
-    const mergedRoute = {
-      vehicle: route1.route.vehicle,
-      vehicleName: route1.route.vehicleName,
+    // Case 2: j at end of r2, i at start of r1 -> r2 + r1
+    else if (jAtEndOfR2 && iAtStartOfR1) {
+      newStops = [
+        ...r2.stops.slice(0, -1),
+        ...r1.stops.slice(1)
+      ];
+    }
+
+    if (!newStops) continue; // endpoints not mergeable per CW
+
+    const combinedDemand = (r1.totalCapacity || 0) + (r2.totalCapacity || 0);
+    if (combinedDemand > maxCapacity) continue;
+
+    // Reorder with updated orders
+    newStops = newStops.map((st, idx) => ({ ...st, order: idx }));
+    const merged = {
+      vehicle: undefined,
+      vehicleName: 'Unassigned',
       stops: newStops,
-      distance: totalDistance,
-      duration: totalDuration,
-      totalCapacity: totalDemand
+      distance: 0,
+      duration: 0,
+      totalCapacity: combinedDemand
     };
-    
-    // Update vehicle capacity
-    vehicle.remainingCapacity = vehicle.capacity - totalDemand;
-    
-    // Remove old routes and add merged route
-    routes.splice(Math.max(route1.index, route2.index), 1);
-    routes.splice(Math.min(route1.index, route2.index), 1, mergedRoute);
+    recomputeRouteMetrics(merged);
+
+    // Replace two routes with merged
+    const idxToRemove = Math.max(posI.routeIndex, posJ.routeIndex);
+    const idxToReplace = Math.min(posI.routeIndex, posJ.routeIndex);
+    routes.splice(idxToRemove, 1);
+    routes.splice(idxToReplace, 1, merged);
+  }
+
+  // If more routes than available vehicles, try to merge smallest-demand routes while feasible
+  const totalVehicleSlots = vehicles.reduce((sum, v) => sum + (v.count || 0), 0);
+  if (Number.isFinite(totalVehicleSlots) && totalVehicleSlots > 0) {
+    let guard = 0;
+    while (routes.length > totalVehicleSlots && guard < 1000) {
+      guard++;
+      // sort by demand asc
+      routes.sort((a, b) => (a.totalCapacity || 0) - (b.totalCapacity || 0));
+      let mergedAny = false;
+      for (let a = 0; a < routes.length - 1; a++) {
+        for (let b = a + 1; b < routes.length; b++) {
+          const ra = routes[a];
+          const rb = routes[b];
+          if ((ra.totalCapacity || 0) + (rb.totalCapacity || 0) > maxCapacity) continue;
+          // attempt endpoint merge ra end + rb start or rb end + ra start
+          const raEndId = toId(ra.stops[ra.stops.length - 2].locationId);
+          const raStartId = toId(ra.stops[1].locationId);
+          const rbEndId = toId(rb.stops[rb.stops.length - 2].locationId);
+          const rbStartId = toId(rb.stops[1].locationId);
+
+          let ns = null;
+          if (distances[raEndId] && distances[raEndId][rbStartId] != null) {
+            ns = [...ra.stops.slice(0, -1), ...rb.stops.slice(1)];
+          } else if (distances[rbEndId] && distances[rbEndId][raStartId] != null) {
+            ns = [...rb.stops.slice(0, -1), ...ra.stops.slice(1)];
+          }
+          if (!ns) continue;
+
+          ns = ns.map((st, i) => ({ ...st, order: i }));
+          const mergedR = {
+            vehicle: undefined,
+            vehicleName: 'Unassigned',
+            stops: ns,
+            distance: 0,
+            duration: 0,
+            totalCapacity: (ra.totalCapacity || 0) + (rb.totalCapacity || 0)
+          };
+          recomputeRouteMetrics(mergedR);
+
+          // replace a and b with mergedR
+          routes.splice(b, 1);
+          routes.splice(a, 1, mergedR);
+          mergedAny = true;
+          break;
+        }
+        if (mergedAny) break;
+      }
+      if (!mergedAny) break;
+    }
+  }
+
+  // Assign vehicles greedily (largest demand first)
+  const vehicleSlots = [];
+  vehicles.forEach((v) => {
+    const count = v.count || 1;
+    for (let i = 0; i < count; i++) {
+      vehicleSlots.push({ _id: v._id, name: v.name, capacity: v.capacity || 0, used: false });
+    }
   });
-  
+  routes.sort((a, b) => (b.totalCapacity || 0) - (a.totalCapacity || 0));
+  vehicleSlots.sort((a, b) => b.capacity - a.capacity);
+
+  for (const r of routes) {
+    const slot = vehicleSlots.find((vs) => !vs.used && vs.capacity >= (r.totalCapacity || 0));
+    if (slot) {
+      r.vehicle = slot._id;
+      r.vehicleName = slot.name;
+      slot.used = true;
+    } else {
+      // Leave unassigned if no suitable slot
+      r.vehicle = undefined;
+      r.vehicleName = 'Unassigned';
+    }
+  }
+
+  // Recompute metrics post-assignment (no change, but ensures consistency)
+  routes.forEach(recomputeRouteMetrics);
   return routes;
 }
 

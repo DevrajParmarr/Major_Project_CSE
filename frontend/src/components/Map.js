@@ -42,6 +42,7 @@ const Map = ({
   zoom = 13,
   height = "500px",
   useRoadNetwork = false,
+  routedPolylines = {},
 }) => {
   const [mapInstance, setMapInstance] = useState(null);
   const [showRoutes, setShowRoutes] = useState(true);
@@ -166,11 +167,18 @@ const Map = ({
           if (!route.stops || route.stops.length < 2) return null;
           const color = routeColors[index % routeColors.length];
           
-          const coordinates = route.stops.map(stop => {
-            const locationId = stop.locationId || (typeof stop.location === 'object' ? stop.location._id : stop.location);
-            const location = locations.find(loc => loc._id === locationId) || { latitude: stop.latitude, longitude: stop.longitude };
-            return location ? [location.latitude, location.longitude] : null;
-          }).filter(Boolean);
+          let coordinates = [];
+          const routed = useRoadNetwork && routedPolylines && routedPolylines[index];
+          if (routed && routed.coordinates) {
+            // GeoJSON coordinates are [lng, lat]
+            coordinates = routed.coordinates.map(([lng, lat]) => [lat, lng]);
+          } else {
+            coordinates = route.stops.map(stop => {
+              const locationId = stop.locationId || (typeof stop.location === 'object' ? stop.location._id : stop.location);
+              const location = locations.find(loc => loc._id === locationId) || { latitude: stop.latitude, longitude: stop.longitude };
+              return location ? [location.latitude, location.longitude] : null;
+            }).filter(Boolean);
+          }
 
           // TODO: If useRoadNetwork is true, fetch a routed polyline from OSRM/Google Directions here
           return (

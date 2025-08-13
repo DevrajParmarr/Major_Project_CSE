@@ -156,6 +156,7 @@ return (
         routes={optimization.routes}
         vehicles={optimization.vehicles || []}
         useRoadNetwork={useRoadNetwork}
+        routedPolylines={routedPolylines}
       />
     </div>
 

@@ -6,12 +6,13 @@ import { useTheme } from '../context/ThemeContext';
 import '../styles/Navbar.css';
 
 const Navbar = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, updateUserPreferences } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -84,8 +85,15 @@ const Navbar = () => {
           </div>
 
           <div className="navbar-user">
-            <button className="btn btn-outline btn-sm" onClick={toggleTheme} aria-label="Toggle theme">
-              {theme === 'light' ? 'Dark' : 'Light'}
+            <button className="btn btn-outline btn-sm" onClick={async () => {
+              const newTheme = theme === 'light' ? 'dark' : 'light';
+              toggleTheme();
+              if (currentUser) {
+                setSavingPrefs(true);
+                try { await updateUserPreferences({ theme: newTheme }); } finally { setSavingPrefs(false); }
+              }
+            }} aria-label="Toggle theme">
+              {savingPrefs ? 'Saving...' : theme === 'light' ? 'Dark' : 'Light'}
             </button>
             {currentUser && (
               <>

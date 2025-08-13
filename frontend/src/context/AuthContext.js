@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AuthService from '../services/auth.service';
+import { useTheme } from './ThemeContext';
 
 export const AuthContext = createContext();
 
@@ -7,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { theme, toggleTheme } = useTheme?.() || { theme: 'light', toggleTheme: () => {} };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -14,6 +16,13 @@ export const AuthProvider = ({ children }) => {
         if (AuthService.isAuthenticated()) {
           const response = await AuthService.getCurrentUser();
           setCurrentUser(response.data);
+          // Fetch preferences and sync theme
+          const prefsRes = await AuthService.getPreferences();
+          const prefs = prefsRes.data || {};
+          if (prefs.theme && prefs.theme !== document.documentElement.getAttribute('data-theme')) {
+            // set theme through DOM attribute; ThemeProvider will pick it up next mount
+            document.documentElement.setAttribute('data-theme', prefs.theme);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch user:', err);
@@ -32,6 +41,12 @@ export const AuthProvider = ({ children }) => {
       const data = await AuthService.login(email, password);
       const userResponse = await AuthService.getCurrentUser();
       setCurrentUser(userResponse.data);
+      // fetch preferences
+      const prefsRes = await AuthService.getPreferences();
+      const prefs = prefsRes.data || {};
+      if (prefs.theme) {
+        document.documentElement.setAttribute('data-theme', prefs.theme);
+      }
       return data;
     } catch (err) {
       setError(err.response?.data?.msg || 'Login failed');
@@ -57,6 +72,15 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
+  const updateUserPreferences = async (prefs) => {
+    const res = await AuthService.updatePreferences(prefs);
+    setCurrentUser(res.data);
+    if (prefs.theme) {
+      document.documentElement.setAttribute('data-theme', prefs.theme);
+    }
+    return res.data;
+  };
+
   const value = {
     currentUser,
     loading,
@@ -65,6 +89,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     isAuthenticated: AuthService.isAuthenticated,
+    updateUserPreferences,
   };
 
   return (

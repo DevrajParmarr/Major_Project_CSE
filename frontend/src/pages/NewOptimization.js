@@ -5,9 +5,11 @@ import LocationService from '../services/location.service';
 import OptimizationService from '../services/optimization.service';
 import Map from '../components/Map';
 import '../styles/NewOptimization.css';
+import { useAuth } from '../context/AuthContext';
 
 const NewOptimization = () => {
   const navigate = useNavigate();
+  const { currentUser, updateUserPreferences } = useAuth();
   const [name, setName] = useState('');
   const [vehicles, setVehicles] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -18,6 +20,12 @@ const NewOptimization = () => {
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
   const [algorithm, setAlgorithm] = useState('clarke-wright');
+
+  useEffect(() => {
+    if (currentUser?.preferences?.defaultAlgorithm) {
+      setAlgorithm(currentUser.preferences.defaultAlgorithm);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     fetchData();
@@ -94,6 +102,8 @@ const NewOptimization = () => {
       };
       
       const response = await OptimizationService.create(optimizationData);
+      // persist default algorithm if different
+      try { if (currentUser && currentUser?.preferences?.defaultAlgorithm !== algorithm) { await updateUserPreferences({ defaultAlgorithm: algorithm }); } } catch {}
       navigate(`/optimizations/${response._id}`);
     } catch (err) {
       setError('Optimization failed. Please try again.');

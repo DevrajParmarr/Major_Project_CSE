@@ -94,3 +94,33 @@ exports.getUser = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+// Get preferences
+exports.getPreferences = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('preferences');
+    res.json(user.preferences || {});
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+};
+
+// Update preferences
+exports.updatePreferences = async (req, res) => {
+  try {
+    const { theme, defaultAlgorithm } = req.body;
+    const update = {};
+    if (theme) update['preferences.theme'] = theme;
+    if (defaultAlgorithm) update['preferences.defaultAlgorithm'] = defaultAlgorithm;
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: update },
+      { new: true, select: '-password' }
+    );
+    res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+};

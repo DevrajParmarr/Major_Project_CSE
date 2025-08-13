@@ -15,6 +15,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  preferences: {
+    theme: { type: String, enum: ['light', 'dark'], default: 'light' },
+    defaultAlgorithm: { type: String, enum: ['clarke-wright', 'nearest-neighbor'], default: 'clarke-wright' }
+  },
   date: {
     type: Date,
     default: Date.now

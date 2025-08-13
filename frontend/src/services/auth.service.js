@@ -28,12 +28,17 @@ const isAuthenticated = () => {
   return localStorage.getItem('token') !== null;
 };
 
+const getPreferences = async () => api.get('/auth/preferences');
+const updatePreferences = async (prefs) => api.put('/auth/preferences', prefs);
+
 const AuthService = {
   register,
   login,
   logout,
   getCurrentUser,
-  isAuthenticated
+  isAuthenticated,
+  getPreferences,
+  updatePreferences,
 };
 
 export default AuthService;

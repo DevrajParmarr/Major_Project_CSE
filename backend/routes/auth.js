@@ -18,4 +18,14 @@ router.post('/login', authController.login);
 // @access  Private
 router.get('/', auth, authController.getUser);
 
+// @route   GET api/auth/preferences
+// @desc    Get user preferences
+// @access  Private
+router.get('/preferences', auth, authController.getPreferences);
+
+// @route   PUT api/auth/preferences
+// @desc    Update user preferences
+// @access  Private
+router.put('/preferences', auth, authController.updatePreferences);
+
 module.exports = router;

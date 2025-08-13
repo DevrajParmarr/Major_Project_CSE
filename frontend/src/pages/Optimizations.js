@@ -13,6 +13,7 @@ const Optimizations = () => {
 
   useEffect(() => {
     fetchOptimizations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchOptimizations = async () => {

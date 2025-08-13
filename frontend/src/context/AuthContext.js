@@ -1,6 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AuthService from '../services/auth.service';
-import { useTheme } from './ThemeContext';
 
 export const AuthContext = createContext();
 
@@ -8,7 +7,6 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { theme, toggleTheme } = useTheme?.() || { theme: 'light', toggleTheme: () => {} };
 
   useEffect(() => {
     const fetchUser = async () => {

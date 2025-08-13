@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import OptimizationService from '../services/optimization.service';
 import '../styles/Optimizations.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
+import { useToast } from '../components/ToastProvider';
 
 const Optimizations = () => {
   const [optimizations, setOptimizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { notify } = useToast();
 
   useEffect(() => {
     fetchOptimizations();
@@ -20,6 +23,7 @@ const Optimizations = () => {
       setError('');
     } catch (err) {
       setError('Failed to load optimizations');
+      notify('Failed to load optimizations', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -32,15 +36,28 @@ const Optimizations = () => {
         await OptimizationService.remove(id);
         setOptimizations(optimizations ? optimizations.filter(opt => opt._id !== id) : []);
         setError('');
+        notify('Optimization deleted', 'success');
       } catch (err) {
         setError('Failed to delete optimization');
+        notify('Failed to delete optimization', 'error');
         console.error(err);
       }
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="optimizations-container">
+        <div className="optimizations-header">
+          <h1>Optimizations</h1>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px,1fr))', gap: '1rem' }}>
+          <LoadingSkeleton lines={4} />
+          <LoadingSkeleton lines={4} />
+          <LoadingSkeleton lines={4} />
+        </div>
+      </div>
+    );
   }
 
   return (

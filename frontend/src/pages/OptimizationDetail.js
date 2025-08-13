@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import OptimizationService from '../services/optimization.service';
 import Map from '../components/Map';
 import '../styles/OptimizationDetail.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
+import { useToast } from '../components/ToastProvider';
 
 const OptimizationDetail = () => {
   const { id } = useParams();
@@ -11,6 +13,7 @@ const OptimizationDetail = () => {
   
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('routes');
+  const { notify } = useToast();
 
   useEffect(() => {
     fetchOptimization();
@@ -33,19 +36,28 @@ const OptimizationDetail = () => {
   const handleExport = () => {
     if (!optimization) return;
     
-    const dataStr = JSON.stringify(optimization, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `optimization-${optimization.name.replace(/\s+/g, '-').toLowerCase()}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+    try {
+      const dataStr = JSON.stringify(optimization, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `optimization-${optimization.name.replace(/\s+/g, '-').toLowerCase()}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      notify('Optimization exported', 'success');
+    } catch (e) {
+      notify('Export failed', 'error');
+    }
   };
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="optimization-detail-container">
+        <LoadingSkeleton lines={6} />
+      </div>
+    );
   }
 
   if (!optimization) {

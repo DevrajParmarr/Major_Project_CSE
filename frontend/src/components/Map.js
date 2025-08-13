@@ -9,9 +9,10 @@ import LocationSearch from './LocationSearch';
 import '../styles/Map.css';
 
 const createCustomIcon = (color, type) => {
+  const fa = type === 'depot' ? 'fa-warehouse' : 'fa-map-marker-alt';
   return L.divIcon({
     className: `custom-marker ${type}`,
-    html: `<div style="background-color: ${color}"><i class="fas fa-${type === 'depot' ? 'warehouse' : 'map-marker-alt'}"></i></div>`,
+    html: `<div style="background-color: ${color}"><i class="fa ${fa}"></i><span style="display:none">${type === 'depot' ? '🏭' : '📍'}</span></div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 30],
     popupAnchor: [0, -30]
@@ -39,10 +40,12 @@ const Map = ({
   onMapClick,
   center = [22.7196, 75.8577],
   zoom = 13,
-  height = "500px"
+  height = "500px",
+  useRoadNetwork = false,
 }) => {
   const [mapInstance, setMapInstance] = useState(null);
   const [showRoutes, setShowRoutes] = useState(true);
+  const [routeVisibility, setRouteVisibility] = useState({});
   const routeColors = [
     '#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FF33A8', 
     '#33FFF6', '#FFB533', '#BD33FF', '#FF3333', '#33FF33'
@@ -80,6 +83,13 @@ const Map = ({
     }
   };
 
+  useEffect(() => {
+    // initialize visibility when routes change
+    const vis = {};
+    routes.forEach((_, idx) => { vis[idx] = true; });
+    setRouteVisibility(vis);
+  }, [routes]);
+
   return (
     <div className="map-wrapper" style={{ height }}>
       {onLocationSelect && (
@@ -91,10 +101,22 @@ const Map = ({
         </div>
       )}
 
-      <div className="map-toolbar" style={{ position: 'absolute', zIndex: 1000, right: 12, top: 12, display: 'flex', gap: 8 }}>
+      <div className="map-toolbar" style={{ position: 'absolute', zIndex: 1000, right: 12, top: 12, display: 'flex', gap: 8, flexDirection: 'column', alignItems: 'flex-end' }}>
         <button className="btn btn-outline btn-sm" onClick={() => setShowRoutes((v) => !v)}>
           {showRoutes ? 'Hide Routes' : 'Show Routes'}
         </button>
+        {showRoutes && routes && routes.length > 0 && (
+          <div className="card card-hover" style={{ padding: 8, maxHeight: 260, overflow: 'auto' }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Routes</div>
+            {routes.map((route, idx) => (
+              <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer' }}>
+                <span style={{ width: 12, height: 12, borderRadius: 2, background: routeColors[idx % routeColors.length] }} />
+                <input type="checkbox" checked={!!routeVisibility[idx]} onChange={() => setRouteVisibility(prev => ({ ...prev, [idx]: !prev[idx] }))} />
+                <span style={{ fontSize: 12 }}>{(vehicles.find(v => v._id === route.vehicle)?.name) || route.vehicleName || `Route ${idx+1}`}</span>
+              </label>
+            ))}
+          </div>
+        )}
       </div>
       
       <MapContainer 
@@ -140,6 +162,7 @@ const Map = ({
         
         {/* Render routes as polylines with arrow decorators */}
         {showRoutes && routes && routes.map((route, index) => {
+          if (!routeVisibility[index]) return null;
           if (!route.stops || route.stops.length < 2) return null;
           const color = routeColors[index % routeColors.length];
           
@@ -149,6 +172,7 @@ const Map = ({
             return location ? [location.latitude, location.longitude] : null;
           }).filter(Boolean);
 
+          // TODO: If useRoadNetwork is true, fetch a routed polyline from OSRM/Google Directions here
           return (
             <React.Fragment key={`route-${index}`}>
               <Polyline 
@@ -172,6 +196,7 @@ const Map = ({
 
         {/* Add vehicle markers at the start of each route */}
         {showRoutes && routes && routes.map((route, index) => {
+          if (!routeVisibility[index]) return null;
           if (!route.stops || route.stops.length < 2) return null;
 
           const firstStop = route.stops[0];
@@ -189,7 +214,7 @@ const Map = ({
               icon={L.divIcon({
                 className: 'vehicle-marker',
                 html: `<div style="background-color: ${color}; padding: 4px 6px; border-radius: 6px; color: white; display: flex; align-items: center; gap: 4px;">
-                         <i class="fas fa-truck"></i>
+                         <i class="fa fa-truck"></i>
                          <span class="vehicle-name">${vehicle.name}</span>
                        </div>`,
                 iconSize: [80, 40],

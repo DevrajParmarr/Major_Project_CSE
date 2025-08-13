@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom';
 import LocationService from '../services/location.service';
 import Map from '../components/Map';
 import '../styles/Locations.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
+import { useToast } from '../components/ToastProvider';
 
 const Locations = () => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { notify } = useToast();
 
   useEffect(() => {
     fetchLocations();
@@ -21,6 +24,7 @@ const Locations = () => {
       setError('');
     } catch (err) {
       setError('Failed to load locations');
+      notify('Failed to load locations', 'error');
       console.error(err);
     } finally {
       setLoading(false);
@@ -41,7 +45,17 @@ const Locations = () => {
   };
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="locations-container">
+        <div className="locations-header">
+          <h1>Locations</h1>
+          <Link to="/locations/add" className="btn btn-primary">
+            <i className="fas fa-plus"></i> Add Location
+          </Link>
+        </div>
+        <LoadingSkeleton lines={5} />
+      </div>
+    );
   }
 
   return (

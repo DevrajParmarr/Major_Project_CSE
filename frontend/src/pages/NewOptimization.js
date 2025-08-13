@@ -17,6 +17,7 @@ const NewOptimization = () => {
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
+  const [algorithm, setAlgorithm] = useState('clarke-wright');
 
   useEffect(() => {
     fetchData();
@@ -88,11 +89,12 @@ const NewOptimization = () => {
       const optimizationData = {
         name,
         vehicleIds: selectedVehicles,
-        locationIds: selectedLocations
+        locationIds: selectedLocations,
+        algorithm,
       };
       
-             const response = await OptimizationService.create(optimizationData);
-       navigate(`/optimizations/${response._id}`);
+      const response = await OptimizationService.create(optimizationData);
+      navigate(`/optimizations/${response._id}`);
     } catch (err) {
       setError('Optimization failed. Please try again.');
       console.error(err);
@@ -249,6 +251,14 @@ const NewOptimization = () => {
                   required
                   placeholder="e.g., Weekly Delivery Route"
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="algorithm">Algorithm</label>
+                <select id="algorithm" value={algorithm} onChange={(e) => setAlgorithm(e.target.value)}>
+                  <option value="clarke-wright">Clarke-Wright (Savings)</option>
+                  <option value="nearest-neighbor">Nearest Neighbor</option>
+                </select>
               </div>
               
               <div className="summary-section">

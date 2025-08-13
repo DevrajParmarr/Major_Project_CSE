@@ -37,7 +37,7 @@ const Map = ({
   vehicles = [],
   onLocationSelect, 
   onMapClick,
-  center = [51.505, -0.09],
+  center = [22.7196, 75.8577],
   zoom = 13,
   height = "500px"
 }) => {

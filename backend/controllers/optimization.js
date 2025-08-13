@@ -66,8 +66,11 @@ exports.createOptimization = async (req, res) => {
     // Find depot (or use first location as depot)
     const depot = locations.find(loc => loc.isDepot) || locations[0];
     
-    // Run optimization algorithm (Clarke-Wright savings algorithm)
-    const routes = clarkeWrightAlgorithm(vehicles, locations, depot);
+    // Choose optimization algorithm
+    const selected = (req.body.algorithm || 'clarke-wright').toLowerCase();
+    const routes = selected === 'nearest-neighbor'
+      ? nearestNeighborAlgorithm(vehicles, locations, depot)
+      : clarkeWrightAlgorithm(vehicles, locations, depot);
     
     // Calculate total distance and duration
     let totalDistance = 0;
@@ -368,6 +371,150 @@ function clarkeWrightAlgorithm(vehicles, locations, depot) {
 
   // Recompute metrics post-assignment (no change, but ensures consistency)
   routes.forEach(recomputeRouteMetrics);
+  return routes;
+}
+
+// Nearest Neighbor heuristic with capacity awareness
+function nearestNeighborAlgorithm(vehicles, locations, depot) {
+  const speedKmh = 40;
+  const toId = (id) => id.toString();
+  const depotId = toId(depot._id);
+  const pending = locations.filter((l) => toId(l._id) !== depotId);
+
+  // Expand vehicles by count
+  const vehicleSlots = [];
+  vehicles.forEach((v) => {
+    const count = v.count || 1;
+    for (let i = 0; i < count; i++) {
+      vehicleSlots.push({ _id: v._id, name: v.name, capacity: v.capacity || 0 });
+    }
+  });
+
+  const routes = [];
+  const used = new Set();
+
+  const dist = (a, b) => calculateDistance(a.latitude, a.longitude, b.latitude, b.longitude);
+
+  for (const vs of vehicleSlots) {
+    let remaining = vs.capacity;
+    const rtStops = [
+      {
+        locationId: depot._id,
+        locationName: depot.name,
+        latitude: depot.latitude,
+        longitude: depot.longitude,
+        demand: depot.demand || 0,
+        order: 0,
+      },
+    ];
+
+    let current = depot;
+    let order = 1;
+
+    while (true) {
+      // pick nearest not used, within remaining capacity
+      let best = null;
+      let bestD = Infinity;
+      for (const loc of pending) {
+        if (used.has(toId(loc._id))) continue;
+        if ((loc.demand || 0) > remaining) continue;
+        const d = dist(current, loc);
+        if (d < bestD) {
+          bestD = d;
+          best = loc;
+        }
+      }
+      if (!best) break;
+
+      rtStops.push({
+        locationId: best._id,
+        locationName: best.name,
+        latitude: best.latitude,
+        longitude: best.longitude,
+        demand: best.demand || 0,
+        order: order++,
+      });
+      remaining -= best.demand || 0;
+      used.add(toId(best._id));
+      current = best;
+    }
+
+    // Close route if it visited something
+    if (rtStops.length > 1) {
+      rtStops.push({
+        locationId: depot._id,
+        locationName: depot.name,
+        latitude: depot.latitude,
+        longitude: depot.longitude,
+        demand: depot.demand || 0,
+        order: order,
+      });
+
+      let totalDist = 0;
+      for (let i = 0; i < rtStops.length - 1; i++) {
+        totalDist += calculateDistance(rtStops[i].latitude, rtStops[i].longitude, rtStops[i + 1].latitude, rtStops[i + 1].longitude);
+      }
+      const duration = Math.round((totalDist / speedKmh) * 60);
+
+      routes.push({
+        vehicle: vs._id,
+        vehicleName: vs.name,
+        stops: rtStops,
+        distance: totalDist,
+        duration,
+        totalCapacity: rtStops.reduce((s, st) => s + (st.demand || 0), 0) - (depot.demand || 0),
+      });
+    }
+
+    // stop early if all assigned
+    if (used.size === pending.length) break;
+  }
+
+  // Any unassigned left? Try to add them as separate small routes if possible
+  for (const loc of pending) {
+    if (used.has(toId(loc._id))) continue;
+    // pick any vehicle that can cover it
+    const vs = vehicleSlots.find((v) => (v.capacity || 0) >= (loc.demand || 0));
+    if (!vs) continue;
+
+    const stops = [
+      {
+        locationId: depot._id,
+        locationName: depot.name,
+        latitude: depot.latitude,
+        longitude: depot.longitude,
+        demand: depot.demand || 0,
+        order: 0,
+      },
+      {
+        locationId: loc._id,
+        locationName: loc.name,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        demand: loc.demand || 0,
+        order: 1,
+      },
+      {
+        locationId: depot._id,
+        locationName: depot.name,
+        latitude: depot.latitude,
+        longitude: depot.longitude,
+        demand: depot.demand || 0,
+        order: 2,
+      },
+    ];
+    const d = dist(depot, loc) * 2;
+    routes.push({
+      vehicle: vs._id,
+      vehicleName: vs.name,
+      stops,
+      distance: d,
+      duration: Math.round((d / speedKmh) * 60),
+      totalCapacity: loc.demand || 0,
+    });
+    used.add(toId(loc._id));
+  }
+
   return routes;
 }
 

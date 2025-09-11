@@ -588,14 +588,14 @@ const Home = () => {
                 <div className="text-center">
                   <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 relative z-20">
                     {item.step}
-                  </div>
+          </div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
                     {item.title}
                   </h3>
                   <p className="text-slate-600 dark:text-slate-300">
                     {item.description}
                   </p>
-                </div>
+        </div>
                 
                 {/* Connector Line - Properly positioned */}
                 {index < 3 && (

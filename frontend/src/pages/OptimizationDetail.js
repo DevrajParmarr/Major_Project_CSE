@@ -29,16 +29,34 @@ const OptimizationDetail = () => {
       // fetch polylines per route
       (async () => {
         const map = {};
+        let successCount = 0;
+        let fallbackCount = 0;
+
         for (let i = 0; i < optimization.routes.length; i++) {
           try {
             const data = await OptimizationService.getRoutedPolyline(id, i);
-            map[i] = data.geometry;
+            map[i] = data.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+
+            if (data.fallback) {
+              fallbackCount++;
+            } else {
+              successCount++;
+            }
           } catch (e) {
-            notify('Failed to fetch routed polyline', 'error');
+            console.error('Failed to fetch routed polyline for route', i, e);
+            fallbackCount++;
           }
         }
+
         setRoutedPolylines(map);
-        notify('Road routes loaded', 'success', { autoClose: 1200 });
+
+        if (successCount > 0 && fallbackCount === 0) {
+          notify(`Real road routes loaded for all ${successCount} routes`, 'success', { autoClose: 2000 });
+        } else if (successCount > 0) {
+          notify(`Real road routes loaded (${successCount} routes), ${fallbackCount} using straight lines`, 'info', { autoClose: 3000 });
+        } else {
+          notify('Using straight-line routes (road network unavailable)', 'warning', { autoClose: 2000 });
+        }
       })();
     }
   }, [useRoadNetwork, optimization, id, notify]);
@@ -119,6 +137,12 @@ return (
         <button className="btn btn-secondary rounded-lg px-4 py-2" onClick={handleExport}>
           <i className="fas fa-download"></i> Export JSON
         </button>
+        <Link to={`/optimizations/${optimization._id}/compare`} className="btn btn-info rounded-lg px-4 py-2">
+          <i className="fas fa-chart-bar"></i> Compare Algorithms
+          {optimization.algorithmResults && optimization.algorithmResults.length > 1 && (
+            <span className="comparison-badge">{optimization.algorithmResults.length}</span>
+          )}
+        </Link>
         <Link to={`/optimizations/${optimization._id}/print`} className="btn btn-outline rounded-lg px-4 py-2">
           <i className="fas fa-print"></i> Print Route Sheets
         </Link>
@@ -136,6 +160,23 @@ return (
         <div className="summary-content">
           <h3>Routes</h3>
           <p className="summary-value">{optimization.routes.length}</p>
+        </div>
+      </div>
+      <div className="summary-card" data-aos="fade-up" data-aos-delay="50">
+        <div className="summary-icon">
+          <i className="fas fa-cogs"></i>
+        </div>
+        <div className="summary-content">
+          <h3>Algorithm</h3>
+          <p className="summary-value">
+            {optimization.selectedAlgorithm
+              ? optimization.selectedAlgorithm.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
+              : 'Clarke Wright'
+            }
+          </p>
+          {optimization.comparisonRun && (
+            <small className="comparison-indicator">Compared {optimization.algorithmResults?.length || 0} algorithms</small>
+          )}
         </div>
       </div>
       <div className="summary-card" data-aos="fade-up" data-aos-delay="100">
@@ -174,10 +215,21 @@ return (
         const distances = routes.map(r => Number((r.distance ?? r.totalDistance) ?? 0));
         const totalStops = routes.reduce((s, r) => s + (r.stops?.length || 0), 0);
         const totalDistance = distances.reduce((a, b) => a + b, 0);
-        const avgStops = routes.length ? (totalStops / routes.length) : 0;
         const avgDistance = routes.length ? (totalDistance / routes.length) : 0;
-        const longestIdx = distances.indexOf(Math.max(...distances, 0));
-        const shortestIdx = distances.indexOf(Math.min(...distances, Infinity));
+
+        // Calculate load efficiency
+        const totalCapacity = routes.reduce((sum, route) => {
+          const vehicle = optimization.vehicles?.find(v => v._id === route.vehicle);
+          return sum + (vehicle?.capacity || 0);
+        }, 0);
+        const totalLoad = routes.reduce((sum, route) => sum + (route.totalCapacity || 0), 0);
+        const loadEfficiency = totalCapacity > 0 ? ((totalLoad / totalCapacity) * 100) : 0;
+
+        // Calculate vehicle utilization
+        const usedVehicles = new Set(routes.map(r => r.vehicle).filter(Boolean)).size;
+        const totalVehicles = optimization.vehicles?.length || 0;
+        const vehicleUtilization = totalVehicles > 0 ? ((usedVehicles / totalVehicles) * 100) : 0;
+
         return (
           <>
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm">
@@ -185,17 +237,18 @@ return (
               <div className="text-2xl font-bold">{totalStops}</div>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Avg Stops/Route</div>
-              <div className="text-2xl font-bold">{avgStops.toFixed(1)}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Load Efficiency</div>
+              <div className="text-2xl font-bold text-green-600">{loadEfficiency.toFixed(1)}%</div>
+              <div className="text-xs text-gray-500">{totalLoad}/{totalCapacity} units</div>
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Vehicle Utilization</div>
+              <div className="text-2xl font-bold text-blue-600">{vehicleUtilization.toFixed(1)}%</div>
+              <div className="text-xs text-gray-500">{usedVehicles}/{totalVehicles} vehicles</div>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm">
               <div className="text-sm text-gray-600 dark:text-gray-400">Avg Distance/Route</div>
               <div className="text-2xl font-bold">{avgDistance.toFixed(2)} km</div>
-            </div>
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Longest/Shortest</div>
-              <div className="text-sm">Longest: Route {longestIdx + 1}</div>
-              <div className="text-sm">Shortest: Route {shortestIdx + 1}</div>
             </div>
           </>
         );
@@ -210,20 +263,24 @@ return (
         </label>
       </div>
       <Map
-        locations={optimization.routes.flatMap(route => 
-          route.stops.map(stop => ({
-            _id: stop.locationId,
-            name: stop.locationName,
-            latitude: stop.latitude,
-            longitude: stop.longitude,
-            demand: stop.demand,
-            isDepot: stop.order === 0 || stop.order === (route.stops.length - 1)
-          }))
-        )}
-        routes={optimization.routes}
+        locations={optimization.locations || []}
+        routes={optimization.routes || []}
         vehicles={optimization.vehicles || []}
         useRoadNetwork={useRoadNetwork}
         routedPolylines={routedPolylines}
+        optimizationId={optimization._id}
+        onRoutedPolylinesUpdate={(routeIndex, coordinates) => {
+          setRoutedPolylines(prev => ({
+            ...prev,
+            [routeIndex]: coordinates
+          }));
+        }}
+        center={optimization.locations && optimization.locations.length > 0
+          ? [optimization.locations[0].latitude, optimization.locations[0].longitude]
+          : [22.7196, 75.8577]
+        }
+        zoom={13}
+        height="500px"
       />
     </div>
 

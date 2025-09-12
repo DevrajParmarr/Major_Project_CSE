@@ -234,28 +234,136 @@
   }
 }
 
-/* Animation for markers */
+/* Enhanced marker animations */
 @keyframes markerPulse {
-  0% {
+  0%, 100% {
     transform: scale(1);
     opacity: 1;
   }
   50% {
     transform: scale(1.1);
-    opacity: 0.8;
+    opacity: 0.9;
   }
-  100% {
-    transform: scale(1);
-    opacity: 1;
+}
+
+@keyframes markerGlow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
   }
 }
 
 .custom-marker.depot div {
-  animation: markerPulse 2s infinite;
+  animation: markerPulse 2s infinite, markerGlow 3s infinite;
 }
 
 .custom-marker.location div {
-  animation: markerPulse 2s infinite 0.5s;
+  animation: markerPulse 2s infinite 0.5s, markerGlow 3s infinite 0.5s;
+}
+
+.custom-marker.vehicle div {
+  animation: markerPulse 2s infinite 1s, markerGlow 3s infinite 1s;
+}
+
+.custom-marker.numbered-stop div {
+  animation: markerPulse 1.5s infinite;
+}
+
+/* Enhanced route styling */
+.leaflet-interactive {
+  cursor: pointer !important;
+}
+
+.leaflet-interactive:hover {
+  filter: brightness(1.2);
+}
+
+/* Route tooltip styling */
+.route-tooltip {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Enhanced popup styling */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.location-popup,
+.route-popup,
+.stop-popup {
+  padding: 16px;
+  min-width: 220px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.location-popup h3,
+.route-popup h3,
+.stop-popup h3 {
+  margin: 0 0 12px 0;
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.location-popup p,
+.route-popup p,
+.stop-popup p {
+  margin: 0 0 8px 0;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.location-popup p:last-child,
+.route-popup p:last-child,
+.stop-popup p:last-child {
+  margin-bottom: 0;
+}
+
+/* Enhanced map controls */
+.leaflet-control-container .leaflet-routing-container-hide {
+  display: none !important;
+}
+
+.leaflet-control {
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Route highlight effect */
+.route-highlight {
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+  animation: routePulse 2s infinite;
+}
+
+@keyframes routePulse {
+  0%, 100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Hover effects */

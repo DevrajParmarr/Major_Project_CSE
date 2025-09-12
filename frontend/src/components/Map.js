@@ -1,310 +1,390 @@
 
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import React, { useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-import LocationSearch from './LocationSearch';
 import '../styles/Map.css';
-import { useTheme } from '../context/ThemeContext';
 
-// Create custom icons for different location types (emoji-based for reliability)
-const createCustomIcon = (type, color) => {
-  return L.divIcon({
-    className: `custom-marker ${type}`,
-    html: `<div style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; background: ${color}; border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-              <span style="color: white; font-size: 18px; font-weight: bold;">
-                ${type === 'depot' ? '🏭' : type === 'vehicle' ? '🚛' : '📍'}
-              </span>
-            </div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
-    popupAnchor: [0, -36]
-  });
-};
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
 
-const createNumberedPinIcon = (color, number) => {
-  return L.divIcon({
-    className: 'custom-marker numbered-stop',
-    html: `<div style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; background: ${color}; border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.4); position: relative;">
-              <span style="color: white; font-size: 16px; font-weight: bold;">${number}</span>
-              <div style="position: absolute; top: -2px; left: -2px; width: 20px; height: 20px; background: #111827; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-size: 10px;">🚩</span>
-              </div>
-            </div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
-    popupAnchor: [0, -36]
-  });
-};
-
-// Map controller component to access the map instance
-const MapController = ({ onMapReady }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (map) {
-      onMapReady(map);
-    }
-  }, [map, onMapReady]);
-  
-  return null;
-};
-
-const Map = ({ 
-  locations = [], 
-  routes = [], 
+const Map = ({
+  locations = [],
+  routes = [],
   vehicles = [],
-  onLocationSelect, 
+  onLocationSelect,
   onMapClick,
   center = [22.7196, 75.8577], // Indore, India coordinates
   zoom = 13,
   height = "500px",
   useRoadNetwork = false,
   routedPolylines = {},
+  onRouteSelect,
+  optimizationId,
+  onRoutedPolylinesUpdate,
+  isLoadingRoutes = false,
 }) => {
-  const [mapInstance, setMapInstance] = useState(null);
-  const [showRoutes, setShowRoutes] = useState(true);
-  const [showVehicles, setShowVehicles] = useState(true);
-  const [routeVisibility, setRouteVisibility] = useState({});
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-
   const routeColors = [
-    '#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FF33A8', 
+    '#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FF33A8',
     '#33FFF6', '#FFB533', '#BD33FF', '#FF3333', '#33FF33'
   ];
+
+  // State for selected route
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [hoveredRoute, setHoveredRoute] = useState(null);
+  const [visibleRoutes, setVisibleRoutes] = useState(new Set(routes.map((_, index) => index)));
 
   // Get vehicle by ID
   const getVehicleById = (vehicleId) => {
     return vehicles.find(v => v._id === vehicleId) || { name: 'Unknown Vehicle' };
   };
 
-  // Handle map click
-  const handleMapClick = (e) => {
-    if (onMapClick) {
-      const { lat, lng } = e.latlng;
-      onMapClick({ latitude: lat, longitude: lng });
+  // Handle route click with real road routing
+  const handleRouteClick = async (route, routeIndex) => {
+    setSelectedRoute(selectedRoute === routeIndex ? null : routeIndex);
+    if (onRouteSelect) {
+      onRouteSelect(route, routeIndex);
+    }
+
+    // If useRoadNetwork is enabled, fetch real road route
+    if (useRoadNetwork && route.stops && route.stops.length > 0) {
+      try {
+        console.log('Fetching road route for route', routeIndex);
+        // Fetch real road route from backend
+        const response = await fetch(`/api/optimizations/${optimizationId}/routes/${routeIndex}/polyline`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const roadRoute = await response.json();
+          console.log('Road route fetched:', roadRoute);
+
+          // Update the route with real road geometry
+          if (onRoutedPolylinesUpdate && roadRoute.geometry && roadRoute.geometry.coordinates) {
+            const coordinates = roadRoute.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+            onRoutedPolylinesUpdate(routeIndex, coordinates);
+
+            // Show notification about route type
+            if (roadRoute.fallback) {
+              console.log('Using fallback straight-line route');
+            } else {
+              console.log('Using real road network route');
+            }
+          }
+        } else {
+          console.error('Failed to fetch road route:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('Failed to fetch road route:', error);
+        // Fallback will be handled by backend
+      }
     }
   };
 
-  useEffect(() => {
-    // initialize visibility when routes change
-    const vis = {};
-    routes.forEach((_, idx) => { vis[idx] = true; });
-    setRouteVisibility(vis);
-  }, [routes]);
+  // Handle route hover
+  const handleRouteHover = (routeIndex) => {
+    setHoveredRoute(routeIndex);
+  };
 
-  // Theme-aware tiles
-  const tileUrl = isDark 
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  const tileAttribution = isDark
-    ? '&copy; <a href="https://carto.com/attributions">CARTO</a> contributors &copy; OpenStreetMap'
-    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const handleRouteLeave = () => {
+    setHoveredRoute(null);
+  };
 
-  const hasRoutes = Array.isArray(routes) && routes.length > 0;
+  // Handle route visibility toggle
+  const toggleRouteVisibility = (routeIndex) => {
+    const newVisibleRoutes = new Set(visibleRoutes);
+    if (newVisibleRoutes.has(routeIndex)) {
+      newVisibleRoutes.delete(routeIndex);
+    } else {
+      newVisibleRoutes.add(routeIndex);
+    }
+    setVisibleRoutes(newVisibleRoutes);
+  };
 
-  // Ensure all locations are properly formatted
-  const validLocations = locations.filter(location => 
-    location && 
-    location.latitude && 
-    location.longitude && 
-    !isNaN(Number(location.latitude)) && 
-    !isNaN(Number(location.longitude))
-  );
+  // Toggle all routes visibility
+  const toggleAllRoutesVisibility = () => {
+    if (visibleRoutes.size === routes.length) {
+      setVisibleRoutes(new Set());
+    } else {
+      setVisibleRoutes(new Set(routes.map((_, index) => index)));
+    }
+  };
 
-  // Debug logging
-  console.log('Map render - Locations:', validLocations.length, 'Routes:', routes.length);
-  console.log('Valid locations:', validLocations);
+  // Create custom icons with better visibility
+  const createCustomIcon = (type, number = null) => {
+    let className = 'custom-marker';
+    let html = '';
+    let iconSize = [48, 48];
+    let iconAnchor = [24, 48];
+
+    switch (type) {
+      case 'depot':
+        className += ' depot';
+        html = `
+          <div style="
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #FF6B47, #FF5733);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: markerPulse 2s infinite;
+          ">🏭</div>
+        `;
+        break;
+      case 'location':
+        className += ' location';
+        html = `
+          <div style="
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #4A6FFF, #3357FF);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: markerPulse 2s infinite 0.5s;
+          ">📍</div>
+        `;
+        iconSize = [40, 40];
+        iconAnchor = [20, 40];
+        break;
+      case 'vehicle':
+        className += ' vehicle';
+        html = `
+          <div style="
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #4AFF6B, #33FF57);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 22px;
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: markerPulse 2s infinite 1s;
+          ">🚛</div>
+        `;
+        iconSize = [44, 44];
+        iconAnchor = [22, 44];
+        break;
+      case 'stop':
+        className += ' numbered-stop';
+        html = `
+          <div style="
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #374151, #111827);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          ">${number || '•'}</div>
+        `;
+        iconSize = [36, 36];
+        iconAnchor = [18, 36];
+        break;
+      default:
+        html = `
+          <div style="
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #6B7280, #4B5563);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          ">📍</div>
+        `;
+        iconSize = [40, 40];
+        iconAnchor = [20, 40];
+    }
+
+    return L.divIcon({
+      className,
+      html,
+      iconSize,
+      iconAnchor,
+      popupAnchor: [0, -iconAnchor[1]]
+    });
+  };
+
+  // Convert route to polyline coordinates with better error handling
+  const getRouteCoordinates = (route, routeIndex) => {
+    if (!route.stops || route.stops.length === 0) return [];
+
+    if (useRoadNetwork && routedPolylines[routeIndex]) {
+      // Use actual road network polyline if available
+      const polyline = routedPolylines[routeIndex];
+      if (Array.isArray(polyline) && polyline.length > 0) {
+        return polyline;
+      }
+    }
+
+    // Use straight lines between stops with validation
+    const coordinates = [];
+    for (const stop of route.stops) {
+      const location = locations.find(loc => {
+        // Handle both string and object IDs
+        const stopId = typeof stop.locationId === 'object' ? stop.locationId.toString() : stop.locationId;
+        const locId = typeof loc._id === 'object' ? loc._id.toString() : loc._id;
+        return stopId === locId;
+      });
+
+      if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
+        coordinates.push([location.latitude, location.longitude]);
+      }
+    }
+
+    return coordinates;
+  };
+
+  // Check if route has real road network data
+  const hasRealRoadData = (routeIndex) => {
+    return useRoadNetwork && routedPolylines[routeIndex] && Array.isArray(routedPolylines[routeIndex]) && routedPolylines[routeIndex].length > 0;
+  };
 
   return (
-    <div className="map-wrapper" style={{ height }}>
-      {onLocationSelect && (
-        <div className="map-search-container">
-          <LocationSearch 
-            onLocationSelect={onLocationSelect} 
-            map={mapInstance} 
-          />
-        </div>
-      )}
-
-      <div className="map-toolbar" style={{ 
-        position: 'absolute', 
-        zIndex: 1000, 
-        right: 12, 
-        top: 12, 
-        display: 'flex', 
-        gap: 8, 
-        flexDirection: 'column', 
-        alignItems: 'flex-end',
-        maxWidth: '200px'
-      }}>
-        <button className="btn btn-outline btn-sm" onClick={() => setShowRoutes((v) => !v)}>
-          {showRoutes ? 'Hide Routes' : 'Show Routes'}
-        </button>
-        <button className="btn btn-outline btn-sm" onClick={() => setShowVehicles((v) => !v)}>
-          {showVehicles ? 'Hide Vehicles' : 'Show Vehicles'}
-        </button>
-        {showRoutes && hasRoutes && (
-          <div className="card card-hover bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ 
-            padding: 8, 
-            maxHeight: 200, 
-            overflow: 'auto',
-            minWidth: '180px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: 6, color: '#1e293b' }} className="dark:text-white">Routes</div>
-            {routes.map((route, idx) => (
-              <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer' }}>
-                <span style={{ width: 12, height: 12, borderRadius: 2, background: routeColors[idx % routeColors.length] }} />
-                <input type="checkbox" checked={!!routeVisibility[idx]} onChange={() => setRouteVisibility(prev => ({ ...prev, [idx]: !prev[idx] }))} />
-                <span style={{ fontSize: 12, color: '#475569' }} className="dark:text-slate-300">{(vehicles.find(v => v._id === route.vehicle)?.name) || route.vehicleName || `Route ${idx+1}`}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      <MapContainer 
-        center={center} 
-        zoom={zoom} 
-        className="map-container" 
-        style={{ height: '100%' }}
-        whenCreated={setMapInstance}
-        onClick={handleMapClick}
+    <div className="map-wrapper" style={{ height, position: 'relative' }}>
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        style={{ height: '100%', width: '100%' }}
+        className="map-container"
       >
-        <MapController onMapReady={setMapInstance} />
-        
         <TileLayer
-          url={tileUrl}
-          attribution={tileAttribution}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
-        {/* Always render ALL locations as markers - this fixes the issue */}
-        {validLocations.map((location, index) => {
-          console.log(`Rendering location ${index}:`, location.name, location.latitude, location.longitude);
-          const iconColor = location.isDepot ? '#FF5733' : '#3357FF';
-          return (
-            <Marker 
-              key={location._id || `temp-${location.latitude}-${location.longitude}`}
-              position={[Number(location.latitude), Number(location.longitude)]}
-              icon={createCustomIcon(
-                location.isDepot ? 'depot' : 'location',
-                iconColor
-              )}
-              zIndexOffset={500}
-            >
-              <Popup>
-                <div className="location-popup">
-                  <h3 className="font-bold text-lg mb-2">{location.name}</h3>
-                  {location.address && <p className="text-gray-600 mb-2">{location.address}</p>}
-                  <p className="text-sm text-gray-500 mb-2">
-                    <strong>Coordinates:</strong> {Number(location.latitude).toFixed(6)}, {Number(location.longitude).toFixed(6)}
-                  </p>
-                  {location.isDepot && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-                      <span>🏭</span> Depot
-                    </div>
-                  )}
-                  {location.demand > 0 && (
-                    <p className="text-sm"><strong>Demand:</strong> {location.demand}</p>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
-        
-        {/* Render routes as polylines with stop icons */}
-        {showRoutes && routes && routes.map((route, index) => {
-          if (!routeVisibility[index]) return null;
-          if (!route.stops || route.stops.length < 2) return null;
-          const color = routeColors[index % routeColors.length];
-          
-          let coordinates = [];
-          const routed = useRoadNetwork && routedPolylines && routedPolylines[index];
-          if (routed && routed.coordinates) {
-            // GeoJSON coordinates are [lng, lat]
-            coordinates = routed.coordinates.map(([lng, lat]) => [lat, lng]);
-          } else {
-            coordinates = route.stops.map(stop => {
-              const locationId = stop.locationId || (typeof stop.location === 'object' ? stop.location._id : stop.location);
-              const loc = locations.find(l => l._id === locationId) || { latitude: stop.latitude, longitude: stop.longitude };
-              return loc ? [Number(loc.latitude), Number(loc.longitude)] : null;
-            }).filter(Boolean);
-          }
+
+        {/* Render locations */}
+        {locations.map((location) => (
+          <Marker
+            key={location._id}
+            position={[location.latitude, location.longitude]}
+            icon={createCustomIcon(location.isDepot ? 'depot' : 'location')}
+            eventHandlers={{
+              click: () => onLocationSelect && onLocationSelect(location),
+            }}
+          >
+            <Popup>
+              <div className="location-popup">
+                <h3>{location.name}</h3>
+                <p><strong>Type:</strong> {location.isDepot ? 'Depot' : 'Delivery Location'}</p>
+                <p><strong>Address:</strong> {location.address}</p>
+                {location.demand && <p><strong>Demand:</strong> {location.demand}</p>}
+                <p><strong>Coordinates:</strong> {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Render routes */}
+        {routes.map((route, routeIndex) => {
+          const coordinates = getRouteCoordinates(route, routeIndex);
+          const color = routeColors[routeIndex % routeColors.length];
+          const vehicle = getVehicleById(route.vehicle);
+
+          if (coordinates.length < 2 || !visibleRoutes.has(routeIndex)) return null;
 
           return (
-            <React.Fragment key={`route-${index}`}>
-              <Polyline 
+            <React.Fragment key={`route-${routeIndex}`}>
+              {/* Main route polyline with enhanced visibility */}
+              <Polyline
                 positions={coordinates}
-                color={color}
-                weight={5}
-                opacity={0.8}
+                color={selectedRoute === routeIndex ? '#FFD700' : hoveredRoute === routeIndex ? '#FFA500' : color}
+                weight={selectedRoute === routeIndex ? 10 : hoveredRoute === routeIndex ? 8 : hasRealRoadData(routeIndex) ? 5 : 4}
+                opacity={selectedRoute === routeIndex ? 1 : hoveredRoute === routeIndex ? 0.95 : hasRealRoadData(routeIndex) ? 0.95 : 0.8}
+                dashArray={hasRealRoadData(routeIndex) ? null : '5, 5'}
+                className={selectedRoute === routeIndex ? 'route-highlight' : hasRealRoadData(routeIndex) ? 'road-route' : 'straight-route'}
+                eventHandlers={{
+                  click: () => handleRouteClick(route, routeIndex),
+                  mouseover: (e) => {
+                    handleRouteHover(routeIndex);
+                    e.target.setStyle({
+                      weight: selectedRoute === routeIndex ? 12 : hasRealRoadData(routeIndex) ? 8 : 7,
+                      opacity: 1
+                    });
+                  },
+                  mouseout: (e) => {
+                    handleRouteLeave();
+                    e.target.setStyle({
+                      weight: selectedRoute === routeIndex ? 10 : hasRealRoadData(routeIndex) ? 5 : 4,
+                      opacity: selectedRoute === routeIndex ? 1 : hasRealRoadData(routeIndex) ? 0.95 : 0.8,
+                      color: selectedRoute === routeIndex ? '#FFD700' : color
+                    });
+                  }
+                }}
               />
 
-              {/* Depot pins at start and end */}
-              {(() => {
-                const firstStop = route.stops[0];
-                const lastStop = route.stops[route.stops.length - 1];
-                const firstLocId = firstStop.locationId || (typeof firstStop.location === 'object' ? firstStop.location._id : firstStop.location);
-                const lastLocId = lastStop.locationId || (typeof lastStop.location === 'object' ? lastStop.location._id : lastStop.location);
-                const firstLoc = locations.find(l => l._id === firstLocId) || { latitude: firstStop.latitude, longitude: firstStop.longitude };
-                const lastLoc = locations.find(l => l._id === lastLocId) || { latitude: lastStop.latitude, longitude: lastStop.longitude };
-                const vehicle = getVehicleById(route.vehicle);
-                return (
-                  <>
-                    <Marker
-                      key={`route-${index}-start`}
-                      position={[Number(firstLoc.latitude), Number(firstLoc.longitude)]}
-                      icon={createCustomIcon('depot', '#FF5733')}
-                      zIndexOffset={900}
-                    >
-                      <Popup>
-                        <div className="stop-popup">
-                          <h3 className="font-bold text-lg mb-2">🏭 Depot (Start)</h3>
-                          <p className="text-sm mb-1"><strong>Vehicle:</strong> {vehicle.name}</p>
-                          <p className="text-xs text-gray-500"><strong>Coordinates:</strong> {Number(firstLoc.latitude).toFixed(6)}, {Number(firstLoc.longitude).toFixed(6)}</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                    <Marker
-                      key={`route-${index}-end`}
-                      position={[Number(lastLoc.latitude), Number(lastLoc.longitude)]}
-                      icon={createCustomIcon('depot', '#FF5733')}
-                      zIndexOffset={900}
-                    >
-                      <Popup>
-                        <div className="stop-popup">
-                          <h3 className="font-bold text-lg mb-2">🏭 Depot (End)</h3>
-                          <p className="text-sm mb-1"><strong>Vehicle:</strong> {vehicle.name}</p>
-                          <p className="text-xs text-gray-500"><strong>Coordinates:</strong> {Number(lastLoc.latitude).toFixed(6)}, {Number(lastLoc.longitude).toFixed(6)}</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  </>
-                );
-              })()}
+              {/* Route direction arrows */}
+              {coordinates.length > 2 && (
+                <Polyline
+                  positions={coordinates}
+                  color={color}
+                  weight={2}
+                  opacity={0.6}
+                  dashArray="1, 10"
+                />
+              )}
 
-              {/* Numbered pin icons for intermediate stops */}
-              {route.stops.map((stop, stopIndex) => {
-                if (stopIndex === 0 || stopIndex === route.stops.length - 1) return null; // skip depot ends here
-                const locationId = stop.locationId || (typeof stop.location === 'object' ? stop.location._id : stop.location);
-                const loc = locations.find(l => l._id === locationId) || { latitude: stop.latitude, longitude: stop.longitude };
-                if (!loc) return null;
+              {/* Route stop markers with improved visibility */}
+              {route.stops && route.stops.map((stop, stopIndex) => {
+                const location = locations.find(loc => {
+                  const stopId = typeof stop.locationId === 'object' ? stop.locationId.toString() : stop.locationId;
+                  const locId = typeof loc._id === 'object' ? loc._id.toString() : loc._id;
+                  return stopId === locId;
+                });
+                if (!location) return null;
+
                 return (
                   <Marker
-                    key={`route-${index}-stop-${stopIndex}`}
-                    position={[Number(loc.latitude), Number(loc.longitude)]}
-                    icon={createNumberedPinIcon(color, stopIndex)}
-                    zIndexOffset={800}
+                    key={`stop-${routeIndex}-${stopIndex}`}
+                    position={[location.latitude, location.longitude]}
+                    icon={createCustomIcon('stop', stopIndex + 1)}
+                    eventHandlers={{
+                      click: () => {
+                        console.log('Stop clicked:', stopIndex + 1, location.name);
+                      }
+                    }}
                   >
                     <Popup>
                       <div className="stop-popup">
-                        <h3 className="font-bold text-lg mb-2">📍 {stop.locationName || 'Stop'} (#{stopIndex})</h3>
-                        {stop.demand > 0 && <p className="text-sm mb-1"><strong>Demand:</strong> {stop.demand}</p>}
-                        <p className="text-xs text-gray-500"><strong>Coordinates:</strong> {Number(loc.latitude).toFixed(6)}, {Number(loc.longitude).toFixed(6)}</p>
+                        <h3>Stop {stopIndex + 1}</h3>
+                        <p><strong>Location:</strong> {location.name}</p>
+                        <p><strong>Route:</strong> {vehicle.name}</p>
+                        <p><strong>Sequence:</strong> {stopIndex + 1} of {route.stops.length}</p>
+                        {stop.demand && <p><strong>Demand:</strong> {stop.demand}</p>}
+                        <p><strong>Coordinates:</strong> {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</p>
                       </div>
                     </Popup>
                   </Marker>
@@ -313,41 +393,208 @@ const Map = ({
             </React.Fragment>
           );
         })}
-
-        {/* Vehicle markers at the start of each route */}
-        {showVehicles && showRoutes && routes && routes.map((route, index) => {
-          if (!route.stops || route.stops.length < 2) return null;
-
-          const firstStop = route.stops[0];
-          const locationId = firstStop.locationId || (typeof firstStop.location === 'object' ? firstStop.location._id : firstStop.location);
-          const loc = locations.find(l => l._id === locationId) || { latitude: firstStop.latitude, longitude: firstStop.longitude };
-          if (!loc) return null;
-
-          const vehicle = getVehicleById(route.vehicle);
-          const color = routeColors[index % routeColors.length];
-
-          return (
-            <Marker
-              key={`vehicle-${index}`}
-              position={[Number(loc.latitude), Number(loc.longitude)]}
-              icon={L.divIcon({
-                className: 'vehicle-marker',
-                html: `<div style="background: linear-gradient(135deg, ${color}, ${color}dd); padding: 6px 8px; border-radius: 999px; color: white; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 2px solid white;">🚛<span class="vehicle-name">${vehicle.name}</span></div>`,
-                iconSize: [120, 36],
-                iconAnchor: [60, 18]
-              })}
-              zIndexOffset={1000}
-            >
-              <Popup>
-                <div className="vehicle-popup">
-                  <h3 className="font-bold text-lg mb-2">🚛 {vehicle.name}</h3>
-                  <p className="text-sm text-gray-600">Route #{index + 1}</p>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
       </MapContainer>
+
+      {/* Route Summary Overlay */}
+      {routes && routes.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            padding: '12px',
+            maxWidth: '280px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            zIndex: 1000
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <h4 style={{ margin: '0', fontSize: '14px', fontWeight: '600' }}>
+              Route Summary
+            </h4>
+            <button
+              onClick={toggleAllRoutesVisibility}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#3b82f6',
+                fontSize: '12px',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              {visibleRoutes.size === routes.length ? 'Hide All' : 'Show All'}
+            </button>
+          </div>
+          <div style={{ maxHeight: '250px', overflow: 'auto' }}>
+            {routes.map((route, index) => {
+              const vehicle = getVehicleById(route.vehicle);
+              const color = routeColors[index % routeColors.length];
+              const isVisible = visibleRoutes.has(index);
+
+              return (
+                <div
+                  key={`route-summary-${index}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '8px',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    background: isVisible ? '#f9fafb' : '#f3f4f6',
+                    opacity: isVisible ? 1 : 0.6
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isVisible}
+                    onChange={() => toggleRouteVisibility(index)}
+                    style={{
+                      width: '14px',
+                      height: '14px',
+                      margin: '0',
+                      flexShrink: 0
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '2px',
+                      background: color,
+                      flexShrink: 0
+                    }}
+                  />
+                  <div style={{ fontSize: '12px', flex: 1 }}>
+                    <div style={{ fontWeight: '500' }}>{vehicle.name}</div>
+                    <div style={{ color: '#6b7280' }}>
+                      {route.stops?.length || 0} stops • {Number(route.distance || 0).toFixed(1)} km
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {isLoadingRoutes && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: '#fef3c7',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#92400e',
+              textAlign: 'center'
+            }}>
+              🔄 Calculating real routes...
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Route Details Panel */}
+      {selectedRoute !== null && routes[selectedRoute] && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
+            left: '12px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            borderRadius: '12px',
+            padding: '16px',
+            maxWidth: '300px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            zIndex: 1000,
+            animation: 'slideInLeft 0.3s ease-out'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+            <div
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: routeColors[selectedRoute % routeColors.length],
+                marginRight: '8px'
+              }}
+            />
+            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
+              Route {selectedRoute + 1} Details
+            </h4>
+          </div>
+
+          <div style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.5' }}>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Vehicle:</strong> {getVehicleById(routes[selectedRoute].vehicle).name}
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Distance:</strong> {Number(routes[selectedRoute].distance || 0).toFixed(2)} km
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Duration:</strong> {routes[selectedRoute].duration ? `${Math.floor(routes[selectedRoute].duration / 60)} min` : 'N/A'}
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Stops:</strong> {routes[selectedRoute].stops?.length || 0}
+            </div>
+            <div>
+              <strong>Capacity Used:</strong> {routes[selectedRoute].totalCapacity || 0}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setSelectedRoute(null)}
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              background: 'none',
+              border: 'none',
+              fontSize: '18px',
+              cursor: 'pointer',
+              color: '#6b7280',
+              padding: '4px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Location Summary */}
+      {locations && locations.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '12px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            borderRadius: '12px',
+            padding: '16px',
+            maxWidth: '280px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            zIndex: 1000
+          }}
+        >
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
+            📍 Locations ({locations.length})
+          </h4>
+          <div style={{ fontSize: '14px', color: '#4b5563' }}>
+            <div style={{ marginBottom: '4px' }}>
+              🏭 {locations.filter(loc => loc.isDepot).length} depots
+            </div>
+            <div>
+              📦 {locations.filter(loc => !loc.isDepot).length} delivery stops
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

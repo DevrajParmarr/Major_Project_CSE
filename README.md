@@ -119,6 +119,7 @@ Users → Locations → Vehicles → Optimizations → Routes
 - **OpenStreetMap** - Free mapping data
 - **OSRM** - Open Source Routing Machine for route calculations
 - **CartoDB** - Dark theme map tiles
+- **Google OR-Tools** - Advanced optimization algorithms (optional)
 
 ### Constraint Handling
 - **Vehicle Capacities**  
@@ -134,11 +135,14 @@ Users → Locations → Vehicles → Optimizations → Routes
 
 
 ### Route Optimization Algorithms
-- **Clarke–Wright Savings** (fast initial heuristic)  
-- **Exact Solver** (branch-and-bound for small instances)  
-- **Genetic Algorithm** (evolutionary improvement)  
-- **Tabu Search** (local search with memory)  
+- **Clarke–Wright Savings** (fast initial heuristic)
+- **Enhanced Clarke-Wright** (improved savings with capacity constraints)
+- **Nearest Neighbor** (simple constructive heuristic)
+- **Genetic Algorithm** (evolutionary improvement)
+- **Tabu Search** (local search with memory)
+- **Simulated Annealing** (probabilistic optimization)
 - **Ant Colony Optimization** (stochastic path construction)
+- **Google OR-Tools** (advanced commercial-grade solver - optional)
 ---
 
 ### Technology Stack
@@ -176,10 +180,26 @@ Users → Locations → Vehicles → Optimizations → Routes
    # Install backend dependencies
    cd backend
    npm install
-   
+
    # Install frontend dependencies
    cd ../frontend
    npm install
+   ```
+
+3. **Optional: Install Google OR-Tools for Advanced Optimization**
+   ```bash
+   # Install Google OR-Tools (optional - enhances route optimization)
+   cd backend
+
+   # Quick installation (recommended)
+   node install-ortools.js
+
+   # Manual installation
+   npm install @google/ortools --save-optional
+
+   # Note: OR-Tools installation may take several minutes
+   # If installation fails, the app will use fallback algorithms
+   # Your custom algorithms are already highly optimized!
    ```
 
 3. **Environment Setup**

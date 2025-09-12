@@ -566,43 +566,268 @@
   animation: drawLine 1.5s ease-in-out forwards;
 }
 
-/* Demo Section Styles */
+/* Enhanced Demo Section Styles */
 .route-demo-section {
   background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.route-demo-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(120, 219, 226, 0.3) 0%, transparent 50%);
+  animation: backgroundFloat 20s ease-in-out infinite;
+}
+
+@keyframes backgroundFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-20px) rotate(1deg); }
+  66% { transform: translateY(10px) rotate(-1deg); }
 }
 
 .demo-visualization {
   perspective: 1000px;
+  position: relative;
+  z-index: 2;
 }
 
 .demo-canvas {
   transform-style: preserve-3d;
   transition: all 0.5s ease;
+  position: relative;
+}
+
+.demo-canvas:hover {
+  transform: rotateY(2deg) rotateX(2deg);
 }
 
 .demo-map {
   position: relative;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 58, 138, 0.9) 100%);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Location markers animation */
+/* Enhanced Location markers animation */
 @keyframes locationPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
 }
 
 .demo-map .animate-bounce {
   animation: locationPulse 2s ease-in-out infinite;
 }
 
-/* Vehicle animation */
+/* Enhanced Vehicle animation */
 @keyframes vehicleMove {
-  0% { transform: translateX(0) translateY(0); }
-  25% { transform: translateX(20px) translateY(-10px); }
-  50% { transform: translateX(40px) translateY(0); }
-  75% { transform: translateX(20px) translateY(10px); }
-  100% { transform: translateX(0) translateY(0); }
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(20px) translateY(-10px) rotate(5deg);
+  }
+  50% {
+    transform: translateX(40px) translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateX(20px) translateY(10px) rotate(-5deg);
+  }
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
 }
 
 .demo-map .animate-bounce {
   animation: vehicleMove 3s ease-in-out infinite;
+}
+
+/* Algorithm-specific marker styles */
+.demo-map .marker-clarke-wright {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  animation: locationPulse 2s ease-in-out infinite;
+}
+
+.demo-map .marker-tabu-search {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  animation: locationPulse 2s ease-in-out infinite 0.3s;
+}
+
+.demo-map .marker-simulated-annealing {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  animation: locationPulse 2s ease-in-out infinite 0.6s;
+}
+
+/* Route line animations */
+@keyframes drawLine {
+  from {
+    stroke-dasharray: 0 1000;
+    opacity: 0;
+  }
+  to {
+    stroke-dasharray: 1000 0;
+    opacity: 1;
+  }
+}
+
+.animate-draw-line {
+  stroke-dasharray: 0 1000;
+  animation: drawLine 2s ease-in-out forwards;
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+}
+
+/* Performance metrics display */
+.demo-metrics {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 200px;
+}
+
+.demo-metrics h4 {
+  color: #f3f4f6;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.metric-item:last-child {
+  margin-bottom: 0;
+}
+
+.metric-label {
+  color: #9ca3af;
+}
+
+.metric-value {
+  color: #f3f4f6;
+  font-weight: 600;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+/* Algorithm selector */
+.algorithm-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.algorithm-button {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+.algorithm-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.algorithm-button.active {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Control panel */
+.demo-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.control-button {
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-button.play {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.control-button.pause {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.control-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 20px;
+}
+
+.speed-button {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  border: none;
+}
+
+.speed-button.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.speed-button:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

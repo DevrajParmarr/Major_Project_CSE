@@ -252,3 +252,32 @@
 .route-card .chip + .chip {
   margin-left: 6px;
 }
+
+/* Comparison badge and indicators */
+.comparison-badge {
+  background-color: #28a745;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5rem;
+  position: relative;
+  top: -2px;
+}
+
+.comparison-indicator {
+  color: #6c757d;
+  font-size: 0.75rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.comparison-indicator::before {
+  content: "📊";
+  margin-right: 0.25rem;
+}

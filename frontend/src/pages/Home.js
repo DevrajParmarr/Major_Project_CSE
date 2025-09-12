@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   FaTruck, 
@@ -22,31 +22,158 @@ import {
 const RouteOptimizationDemo = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [performanceMetrics, setPerformanceMetrics] = useState({
+    totalDistance: 0,
+    computationTime: 0,
+    efficiency: 0,
+    vehiclesUsed: 0
+  });
+  const [algorithmProgress, setAlgorithmProgress] = useState(0);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState('clarke-wright');
+  const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false);
+  const [animationSpeed, setAnimationSpeed] = useState(1);
+  const [randomLocations, setRandomLocations] = useState([]);
 
+  const algorithms = useMemo(() => ({
+    'clarke-wright': {
+      name: 'Clarke-Wright Savings',
+      color: '#3b82f6',
+      description: 'Classic savings-based algorithm'
+    },
+    'nearest-neighbor': {
+      name: 'Nearest Neighbor',
+      color: '#10b981',
+      description: 'Greedy constructive heuristic'
+    }
+  }), []);
 
-  const demoSteps = [
-    { name: 'Initial Setup', description: '8 delivery locations with varying demand scattered across the map' },
-    { name: 'Route Calculation', description: 'AI algorithm calculating optimal paths connecting all locations efficiently' },
-    { name: 'Multi-Vehicle Assignment', description: 'Assigning optimized routes to different vehicle types based on capacity' },
-    { name: 'Optimization Complete', description: 'Final optimized routes with minimal distance and balanced workload' }
-  ];
+  const demoSteps = useMemo(() => [
+    {
+      name: 'Initial Setup',
+      description: '8 delivery locations with varying demand scattered across the map',
+      metrics: { totalDistance: 0, computationTime: 0, efficiency: 0, vehiclesUsed: 0 },
+      algorithmSpecific: {
+        'clarke-wright': 'Random initial routes connecting depot to each location',
+        'tabu-search': 'Using Clarke-Wright as initial solution',
+        'simulated-annealing': 'High-temperature random solution'
+      }
+    },
+    {
+      name: `${algorithms[selectedAlgorithm].name} Algorithm`,
+      description: algorithms[selectedAlgorithm].description,
+      metrics: {
+        'clarke-wright': { totalDistance: 245.8, computationTime: 0.23, efficiency: 45, vehiclesUsed: 3 },
+        'nearest-neighbor': { totalDistance: 287.4, computationTime: 0.15, efficiency: 32, vehiclesUsed: 3 }
+      }[selectedAlgorithm],
+      algorithmSpecific: {
+        'clarke-wright': 'Computing savings matrix and merging routes with highest savings first',
+        'nearest-neighbor': 'Constructing routes by always visiting the nearest unvisited location'
+      }
+    },
+    {
+      name: 'Local Search Refinement',
+      description: 'Applying 2-opt and 3-opt moves to improve route efficiency',
+      metrics: {
+        'clarke-wright': { totalDistance: 198.4, computationTime: 0.45, efficiency: 68, vehiclesUsed: 2 },
+        'nearest-neighbor': { totalDistance: 234.6, computationTime: 0.32, efficiency: 52, vehiclesUsed: 2 }
+      }[selectedAlgorithm],
+      algorithmSpecific: {
+        'clarke-wright': '2-opt and 3-opt local search improvements',
+        'nearest-neighbor': 'Route improvement through local neighborhood search'
+      }
+    },
+    {
+      name: 'Optimization Complete',
+      description: `Final optimized routes with ${{
+        'clarke-wright': '68%',
+        'nearest-neighbor': '52%'
+      }[selectedAlgorithm]} distance reduction and balanced workload`,
+      metrics: {
+        'clarke-wright': { totalDistance: 156.2, computationTime: 0.67, efficiency: 89, vehiclesUsed: 2 },
+        'nearest-neighbor': { totalDistance: 187.3, computationTime: 0.48, efficiency: 71, vehiclesUsed: 2 }
+      }[selectedAlgorithm],
+      algorithmSpecific: {
+        'clarke-wright': 'Clarke-Wright algorithm completed with local search',
+        'nearest-neighbor': 'Nearest Neighbor algorithm completed with improvements'
+      }
+    }
+  ], [selectedAlgorithm, algorithms]);
 
   useEffect(() => {
     if (isPlaying) {
       const interval = setInterval(() => {
-        setCurrentStep(prev => (prev + 1) % demoSteps.length);
-      }, 3000);
+        setCurrentStep(prev => {
+          const nextStep = (prev + 1) % demoSteps.length;
+          setPerformanceMetrics(demoSteps[nextStep].metrics);
+          if (nextStep === 1) setAlgorithmProgress(25);
+          else if (nextStep === 2) setAlgorithmProgress(65);
+          else if (nextStep === 3) setAlgorithmProgress(100);
+          return nextStep;
+        });
+      }, 3500 / animationSpeed);
       return () => clearInterval(interval);
     }
-  }, [isPlaying, demoSteps.length]);
+  }, [isPlaying, demoSteps, animationSpeed]);
 
   const startDemo = () => {
     setIsPlaying(true);
     setCurrentStep(0);
+    setPerformanceMetrics(demoSteps[0].metrics);
+    setAlgorithmProgress(0);
   };
 
   const stopDemo = () => {
     setIsPlaying(false);
+  };
+
+  // Generate random locations for demo
+  const generateRandomLocations = () => {
+    const locations = [];
+
+    for (let i = 0; i < 8; i++) {
+      locations.push({
+        x: `${50 + Math.random() * 40}%`,
+        y: `${30 + Math.random() * 40}%`,
+        name: String.fromCharCode(65 + i), // A, B, C, etc.
+        demand: Math.floor(Math.random() * 50) + 10, // Random demand 10-60
+        color: `bg-${['red', 'blue', 'green', 'purple', 'pink', 'indigo', 'teal', 'yellow'][i % 8]}-500`
+      });
+    }
+    return locations;
+  };
+
+  // Initialize random locations on component mount
+  useEffect(() => {
+    setRandomLocations(generateRandomLocations());
+  }, []);
+
+  const resetDemo = () => {
+    setIsPlaying(false);
+    setCurrentStep(0);
+    setPerformanceMetrics(demoSteps[0].metrics);
+    setAlgorithmProgress(0);
+  };
+
+  const nextStep = () => {
+    setCurrentStep(prev => {
+      const next = (prev + 1) % demoSteps.length;
+      setPerformanceMetrics(demoSteps[next].metrics);
+      if (next === 1) setAlgorithmProgress(25);
+      else if (next === 2) setAlgorithmProgress(65);
+      else if (next === 3) setAlgorithmProgress(100);
+      return next;
+    });
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => {
+      const next = prev === 0 ? demoSteps.length - 1 : prev - 1;
+      setPerformanceMetrics(demoSteps[next].metrics);
+      if (next === 0) setAlgorithmProgress(0);
+      else if (next === 1) setAlgorithmProgress(25);
+      else if (next === 2) setAlgorithmProgress(65);
+      return next;
+    });
   };
 
   return (
@@ -66,29 +193,56 @@ const RouteOptimizationDemo = () => {
           <div className="demo-visualization">
             <div className="relative bg-slate-800 rounded-2xl p-8 border border-blue-500/30">
               <div className="demo-canvas bg-slate-900 rounded-xl h-96 relative overflow-hidden">
+                {/* Algorithm Progress Bar */}
+                <div className="absolute top-4 left-4 right-4 z-20">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-blue-300 font-medium">Algorithm Progress</span>
+                    <span className="text-xs text-blue-300">{algorithmProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-700 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-1000 ease-out"
+                      style={{ width: `${algorithmProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Performance Metrics Overlay */}
+                <div className="absolute top-16 right-4 z-20 bg-slate-800/90 rounded-lg p-3 min-w-32">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Distance:</span>
+                      <span className="text-xs text-green-400 font-mono">{performanceMetrics.totalDistance.toFixed(1)} km</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Time:</span>
+                      <span className="text-xs text-blue-400 font-mono">{performanceMetrics.computationTime.toFixed(2)}s</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Efficiency:</span>
+                      <span className="text-xs text-purple-400 font-mono">{performanceMetrics.efficiency}%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Vehicles:</span>
+                      <span className="text-xs text-orange-400 font-mono">{performanceMetrics.vehiclesUsed}</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Animated Route Demo */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center pt-20">
                   <div className="demo-map relative w-full h-full">
                     {/* Depot */}
-                    <div className="absolute top-8 left-8 w-6 h-6 bg-orange-500 rounded-lg flex items-center justify-center text-white text-xs font-bold animate-pulse">
+                    <div className="absolute top-8 left-8 w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg border-2 border-orange-300 animate-pulse">
                       🏭
                     </div>
-                    
-                    {/* Locations */}
-                    {[
-                      { x: '15%', y: '25%', name: 'A', demand: 50 },
-                      { x: '70%', y: '15%', name: 'B', demand: 30 },
-                      { x: '85%', y: '45%', name: 'C', demand: 40 },
-                      { x: '25%', y: '65%', name: 'D', demand: 35 },
-                      { x: '60%', y: '80%', name: 'E', demand: 25 },
-                      { x: '45%', y: '35%', name: 'F', demand: 45 },
-                      { x: '80%', y: '70%', name: 'G', demand: 20 },
-                      { x: '35%', y: '85%', name: 'H', demand: 55 }
-                    ].map((location, index) => (
+
+                    {/* Random Locations with Enhanced Styling */}
+                    {randomLocations.map((location, index) => (
                       <div
                         key={index}
-                        className={`absolute w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold transition-all duration-1000 ${
-                          currentStep >= 1 ? 'animate-bounce' : ''
+                        className={`absolute w-5 h-5 ${location.color} rounded-full flex items-center justify-center text-white text-xs font-bold transition-all duration-1000 shadow-lg border-2 border-white/50 ${
+                          currentStep >= 1 ? 'animate-pulse scale-110' : ''
                         }`}
                         style={{ left: location.x, top: location.y }}
                       >
@@ -96,139 +250,255 @@ const RouteOptimizationDemo = () => {
                       </div>
                     ))}
 
-                    {/* Route Lines - Enhanced with more complex routing */}
+                    {/* Algorithm-Specific Route Visualization */}
                     {currentStep >= 2 && (
                       <>
                         <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                          {/* Depot to Location A */}
-                          <line 
-                            x1="48" y1="48" 
-                            x2="15%" y2="25%" 
-                            stroke="#f97316" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                          />
-                          {/* Location A to F */}
-                          <line 
-                            x1="15%" y1="25%" 
-                            x2="45%" y2="35%" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '0.3s' }}
-                          />
-                          {/* Location F to B */}
-                          <line 
-                            x1="45%" y1="35%" 
-                            x2="70%" y2="15%" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '0.6s' }}
-                          />
-                          {/* Location B to C */}
-                          <line 
-                            x1="70%" y1="15%" 
-                            x2="85%" y2="45%" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '0.9s' }}
-                          />
-                          {/* Location C to G */}
-                          <line 
-                            x1="85%" y1="45%" 
-                            x2="80%" y2="70%" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '1.2s' }}
-                          />
-                          {/* Location G to E */}
-                          <line 
-                            x1="80%" y1="70%" 
-                            x2="60%" y2="80%" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '1.5s' }}
-                          />
-                          {/* Location E to H */}
-                          <line 
-                            x1="60%" y1="80%" 
-                            x2="35%" y2="85%" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '1.8s' }}
-                          />
-                          {/* Location H to D */}
-                          <line 
-                            x1="35%" y1="85%" 
-                            x2="25%" y2="65%" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '2.1s' }}
-                          />
-                          {/* Location D back to Depot */}
-                          <line 
-                            x1="25%" y1="65%" 
-                            x2="48" y2="48" 
-                            stroke="#f97316" 
-                            strokeWidth="3" 
-                            className="animate-draw-line"
-                            style={{ animationDelay: '2.4s' }}
-                          />
+                          <defs>
+                            <marker id={`arrowhead-${selectedAlgorithm}`} markerWidth="10" markerHeight="7"
+                             refX="9" refY="3.5" orient="auto">
+                              <polygon points="0 0, 10 3.5, 0 7" fill={algorithms[selectedAlgorithm].color} />
+                            </marker>
+                          </defs>
+
+                          {/* Dynamic Route Visualization Based on Algorithm */}
+                          {selectedAlgorithm === 'clarke-wright' && (
+                            <>
+                              {/* Clarke-Wright: Savings-based merging */}
+                              <line x1="48" y1="48" x2="15%" y2="25%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="15%" y1="25%" x2="45%" y2="35%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.3s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="45%" y1="35%" x2="70%" y2="15%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.6s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="70%" y1="15%" x2="85%" y2="45%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.9s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="85%" y1="45%" x2="48" y2="48" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.2s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+
+                              <line x1="48" y1="48" x2="25%" y2="65%" stroke="#10b981" strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.5s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="25%" y1="65%" x2="35%" y2="85%" stroke="#10b981" strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.8s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="35%" y1="85%" x2="60%" y2="80%" stroke="#10b981" strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '2.1s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="60%" y1="80%" x2="80%" y2="70%" stroke="#10b981" strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '2.4s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="80%" y1="70%" x2="48" y2="48" stroke="#10b981" strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '2.7s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                            </>
+                          )}
+
+                          {selectedAlgorithm === 'tabu-search' && (
+                            <>
+                              {/* Tabu Search: More complex optimization path */}
+                              <line x1="48" y1="48" x2="15%" y2="25%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="15%" y1="25%" x2="45%" y2="35%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.2s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="45%" y1="35%" x2="70%" y2="15%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.4s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="70%" y1="15%" x2="85%" y2="45%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.6s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="85%" y1="45%" x2="80%" y2="70%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.8s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="80%" y1="70%" x2="60%" y2="80%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.0s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="60%" y1="80%" x2="35%" y2="85%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.2s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="35%" y1="85%" x2="25%" y2="65%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.4s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="25%" y1="65%" x2="48" y2="48" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.6s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                            </>
+                          )}
+
+                          {selectedAlgorithm === 'simulated-annealing' && (
+                            <>
+                              {/* Simulated Annealing: Probabilistic optimization */}
+                              <line x1="48" y1="48" x2="15%" y2="25%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="15%" y1="25%" x2="45%" y2="35%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.3s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="45%" y1="35%" x2="70%" y2="15%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.6s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="70%" y1="15%" x2="85%" y2="45%" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '0.9s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+                              <line x1="85%" y1="45%" x2="48" y2="48" stroke={algorithms[selectedAlgorithm].color} strokeWidth="4" className="animate-draw-line" style={{ animationDelay: '1.2s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} />
+
+                              {/* Additional connections for better optimization */}
+                              <line x1="48" y1="48" x2="80%" y2="70%" stroke="#ef4444" strokeWidth="3" className="animate-draw-line" style={{ animationDelay: '1.5s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} opacity="0.7" />
+                              <line x1="80%" y1="70%" x2="60%" y2="80%" stroke="#ef4444" strokeWidth="3" className="animate-draw-line" style={{ animationDelay: '1.8s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} opacity="0.7" />
+                              <line x1="60%" y1="80%" x2="35%" y2="85%" stroke="#ef4444" strokeWidth="3" className="animate-draw-line" style={{ animationDelay: '2.1s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} opacity="0.7" />
+                              <line x1="35%" y1="85%" x2="25%" y2="65%" stroke="#ef4444" strokeWidth="3" className="animate-draw-line" style={{ animationDelay: '2.4s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} opacity="0.7" />
+                              <line x1="25%" y1="65%" x2="48" y2="48" stroke="#ef4444" strokeWidth="3" className="animate-draw-line" style={{ animationDelay: '2.7s' }} markerEnd={`url(#arrowhead-${selectedAlgorithm})`} opacity="0.7" />
+                            </>
+                          )}
                         </svg>
                       </>
                     )}
 
-                    {/* Multiple Vehicles */}
+                    {/* Enhanced Vehicles with Better Animation */}
                     {currentStep >= 3 && (
                       <>
-                        <div className="absolute top-8 left-8 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce">
+                        <div className="absolute top-8 left-8 w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white text-sm animate-bounce shadow-lg border-2 border-green-300">
                           🚛
                         </div>
-                        <div className="absolute top-16 left-24 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce" style={{ animationDelay: '0.5s' }}>
+                        <div className="absolute top-16 left-24 w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white text-sm animate-bounce shadow-lg border-2 border-purple-300" style={{ animationDelay: '0.5s' }}>
                           🚚
-                        </div>
-                        <div className="absolute top-24 left-40 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce" style={{ animationDelay: '1s' }}>
-                          🚐
                         </div>
                       </>
                     )}
 
-                    {/* Optimization Status */}
-                    <div className="absolute bottom-4 left-4 right-4 bg-slate-800/80 rounded-lg p-3">
-                      <div className="text-sm font-medium text-blue-300">
-                        {demoSteps[currentStep].name}
-          </div>
-                      <div className="text-xs text-slate-400">
+                    {/* Enhanced Optimization Status */}
+                    <div className="absolute bottom-4 left-4 right-4 bg-slate-800/95 backdrop-blur-sm rounded-lg p-4 border border-slate-600/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-semibold text-blue-300">
+                          {demoSteps[currentStep].name}
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          currentStep === 0 ? 'bg-gray-600 text-gray-300' :
+                          currentStep === 1 ? 'bg-blue-600 text-blue-100' :
+                          currentStep === 2 ? 'bg-purple-600 text-purple-100' :
+                          'bg-green-600 text-green-100'
+                        }`}>
+                          Step {currentStep + 1}/4
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-300 leading-relaxed">
                         {demoSteps[currentStep].description}
-              </div>
-            </div>
+                      </div>
+                    </div>
               </div>
             </div>
           </div>
 
-              {/* Demo Controls */}
-              <div className="flex justify-center mt-6 space-x-4">
-                <button
-                  onClick={startDemo}
-                  disabled={isPlaying}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 rounded-lg font-medium transition-colors"
-                >
-                  {isPlaying ? 'Running...' : 'Start Demo'}
-                </button>
-                <button
-                  onClick={stopDemo}
-                  disabled={!isPlaying}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-600 rounded-lg font-medium transition-colors"
-                >
-                  Stop
-                </button>
-            </div>
+              {/* Enhanced Interactive Demo Controls */}
+              <div className="mt-8 space-y-6">
+                {/* Algorithm Selection and Controls */}
+                <div className="flex justify-center gap-4">
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-600/30">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-3 text-center">Select Algorithm</h4>
+                    <div className="flex gap-2">
+                      {Object.entries(algorithms).map(([key, algo]) => (
+                        <button
+                          key={key}
+                          onClick={() => setSelectedAlgorithm(key)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                            selectedAlgorithm === key
+                              ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
+                              : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                          }`}
+                          style={{
+                            border: selectedAlgorithm === key ? `2px solid ${algo.color}` : 'none'
+                          }}
+                        >
+                          {algo.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-600/30">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-3 text-center">Demo Controls</h4>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setRandomLocations(generateRandomLocations())}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg text-sm font-medium transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      >
+                        🔄 New Points
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Control Panel */}
+                <div className="flex justify-center">
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600/30">
+                    <div className="flex items-center justify-center gap-4 mb-4">
+                      {/* Previous Step */}
+                      <button
+                        onClick={prevStep}
+                        disabled={isPlaying}
+                        className="p-3 bg-slate-700/50 hover:bg-slate-600/50 disabled:bg-slate-800/50 rounded-lg transition-all duration-300 disabled:cursor-not-allowed"
+                      >
+                        <FaPlay className="text-slate-300 rotate-180" />
+                      </button>
+
+                      {/* Play/Pause */}
+                      <button
+                        onClick={isPlaying ? stopDemo : startDemo}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                      >
+                        {isPlaying ? (
+                          <><FaPlay className="inline mr-2 rotate-180" /> Pause</>
+                        ) : (
+                          <><FaPlay className="inline mr-2" /> {currentStep === 0 ? 'Start Demo' : 'Resume'}</>
+                        )}
+                      </button>
+
+                      {/* Next Step */}
+                      <button
+                        onClick={nextStep}
+                        disabled={isPlaying}
+                        className="p-3 bg-slate-700/50 hover:bg-slate-600/50 disabled:bg-slate-800/50 rounded-lg transition-all duration-300 disabled:cursor-not-allowed"
+                      >
+                        <FaPlay className="text-slate-300" />
+                      </button>
+
+                      {/* Reset */}
+                      <button
+                        onClick={resetDemo}
+                        className="px-4 py-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg font-medium transition-all duration-300"
+                      >
+                        Reset
+                      </button>
+                    </div>
+
+                    {/* Speed Control */}
+                    <div className="flex items-center justify-center gap-4">
+                      <span className="text-sm text-slate-400">Speed:</span>
+                      <div className="flex gap-2">
+                        {[0.5, 1, 1.5, 2].map(speed => (
+                          <button
+                            key={speed}
+                            onClick={() => setAnimationSpeed(speed)}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all duration-300 ${
+                              animationSpeed === speed
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                            }`}
+                          >
+                            {speed}x
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Advanced Metrics Toggle */}
+                    <div className="flex justify-center mt-4">
+                      <button
+                        onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
+                        className="px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-sm font-medium transition-all duration-300"
+                      >
+                        {showAdvancedMetrics ? 'Hide' : 'Show'} Advanced Metrics
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Advanced Metrics Panel */}
+                {showAdvancedMetrics && (
+                  <div className="flex justify-center">
+                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600/30 max-w-md">
+                      <h4 className="text-sm font-semibold text-slate-300 mb-4 text-center">Advanced Performance Metrics</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-green-400">
+                            {((demoSteps[currentStep].metrics?.efficiency || 0) / 100 * (demoSteps[currentStep].metrics?.totalDistance || 0)).toFixed(1)}%
+                          </div>
+                          <div className="text-slate-400">Route Efficiency</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-blue-400">
+                            {demoSteps[currentStep].metrics?.computationTime || 0}s
+                          </div>
+                          <div className="text-slate-400">Computation Time</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-purple-400">
+                            {demoSteps[currentStep].metrics?.vehiclesUsed || 0}
+                          </div>
+                          <div className="text-slate-400">Vehicles Used</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-orange-400">
+                            {currentStep === 0 ? 0 : Math.round((demoSteps[0].metrics?.totalDistance - demoSteps[currentStep].metrics?.totalDistance) / demoSteps[0].metrics?.totalDistance * 100)}%
+                          </div>
+                          <div className="text-slate-400">Improvement</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
           </div>
         </div>
 

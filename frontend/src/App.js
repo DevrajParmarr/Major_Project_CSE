@@ -15,6 +15,7 @@ import LocationForm from './pages/LocationForm';
 import Optimizations from './pages/Optimizations';
 import NewOptimization from './pages/NewOptimization';
 import OptimizationDetail from './pages/OptimizationDetail';
+import AlgorithmComparison from './pages/AlgorithmComparison';
 import Settings from './pages/Settings';
 import RouteSheet from './pages/RouteSheet';
 import './App.css';
@@ -97,6 +98,11 @@ function App() {
                   <Route path="/optimizations/:id" element={
                     <PrivateRoute>
                       <OptimizationDetail />
+                    </PrivateRoute>
+                  } />
+                  <Route path="/optimizations/:id/compare" element={
+                    <PrivateRoute>
+                      <AlgorithmComparison />
                     </PrivateRoute>
                   } />
                   <Route path="/optimizations/:id/print" element={

@@ -24,6 +24,9 @@
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.3"
   },
+  "optionalDependencies": {
+    "@google/ortools": "^9.5.0"
+  },
   "devDependencies": {
     "nodemon": "^2.0.22"
   }

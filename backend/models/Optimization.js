@@ -22,6 +22,30 @@ const RouteSchema = new mongoose.Schema({
   totalCapacity: Number
 });
 
+const AlgorithmResultSchema = new mongoose.Schema({
+  algorithm: {
+    type: String,
+    required: true
+  },
+  routes: [RouteSchema],
+  totalDistance: {
+    type: Number,
+    default: 0
+  },
+  totalDuration: {
+    type: Number,
+    default: 0
+  },
+  executionTime: {
+    type: Number,
+    default: 0
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const OptimizationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -40,6 +64,8 @@ const OptimizationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Location'
   }],
+  algorithmResults: [AlgorithmResultSchema],
+  // Keep legacy fields for backward compatibility
   routes: [RouteSchema],
   totalDistance: {
     type: Number,
